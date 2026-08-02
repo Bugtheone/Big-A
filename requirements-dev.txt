@@ -1,0 +1,9 @@
+# ── 开发/测试依赖 ──
+# 安装: pip install -r requirements.txt -r requirements-dev.txt
+# 说明：本文件只含开发工具（测试/静态检查/格式化），不含运行依赖。
+#       pytest 已列于 requirements.txt 的「开发」段，此处重复声明以便
+#       一条命令装齐全部开发环境（新人克隆后可直接跑 pytest / ruff / mypy）。
+pytest>=7.0
+ruff>=0.16
+mypy>=1.10
+pre-commit>=4.0

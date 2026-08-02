@@ -98,11 +98,16 @@
 # 1. 安装依赖
 pip install -r requirements.txt
 
+# 1b. 安装开发/测试依赖（pytest / ruff / mypy / pre-commit）
+pip install -r requirements-dev.txt
+pre-commit install   # 安装本地质量门禁钩子（可选但推荐）
+
 # 2. 配置 API Key（可选）
 setx IWENCAI_API_KEY "your_key_here"
 
 # 3. 运行测试
-python tests/test_a_stock.py
+python tests/test_a_stock.py          # 连通性验证（需网络）
+python -m pytest tests/ -v            # 单元测试（纯函数，无网络依赖）
 
 # 4. 运行分析（从项目根目录执行）
 python scripts/analysis/30d/_30d_mainline.py
@@ -112,6 +117,9 @@ python scripts/analysis/daily/_daily_review_v2.py
 # 5. 飞书每日推送
 python scripts/tools/daily_feishu_report.py
 ```
+
+> 质量门禁（提交前自动执行）：`pre-commit` 钩子会跑 ruff + mypy + 主入口检查；
+> CI 全绿（语法 + 规范 + ruff + mypy + pytest）方可合入 `main`。
 
 ## 文档导航
 
