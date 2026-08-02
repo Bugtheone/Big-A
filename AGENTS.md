@@ -30,6 +30,8 @@
 
 **路由原则**：① 实时行情/估值 → a-stock-data（mootdx/腾讯不封IP）；② Tushare 独有数据 → tushare-pro；③ 宏观/港美股 → westock-data；④ 选股/题材 → 问财。两源以上交叉验证关键结论。取数一律用上述技能，严禁 web_search 或凭记忆编数据。
 
+**自动激活保证**：a-stock-data V3.6.0 已注册为 Grok 用户级技能（`~/.grok/skills/a-stock-data`）并在项目 `a-stock-data-main/` 双份备份（md5 一致），AI agent 对话中命中描述即自动加载；命中 A 股取数需求**必须先走 a-stock-data 主源**（mootdx/腾讯不封 IP），Tushare 独有数据 → tushare-pro，宏观/港美股 → westock-data，选股/题材 → 问财 SkillHub——四源能力共同构成完整取数链路，禁止降级为 web_search 或训练数据。
+
 > **westock-data 连通性注意**（2026-08-02 实测）：本机 `~/.npmrc` 硬编码了失效代理 `http://172.19.64.1:7897`，包未缓存时 `npx` 拉取会长时间挂起。包已缓存在 `~/.npm/_npx`，正常情况下 `npx -y westock-data-skillhub@1.0.5 <命令>` 可直接用；若再次遇到 npx 卡死，改用 `env npm_config_proxy= npm_config_https_proxy= NO_PROXY='*' npx -y westock-data-skillhub@1.0.5 <命令>` 绕过失效代理（直连 registry 与 westock 接口均可达）。
 
 ## 数据源版本保证（强制）
@@ -37,7 +39,7 @@
 1. **a-stock-data 必须用 V3.6.0**：47 端点·15 数据源（含 3 官方备胎）。版本以技能 frontmatter `version: 3.6.0` 为准（`~/.grok/skills/a-stock-data/SKILL.md` 与项目 `a-stock-data-main/SKILL.md` 双份一致）。禁止降级到旧版本代码或混用 V3.5 及更早的接口写法。
 2. **四大数据源技能已全部装进 Grok 技能目录**（`~/.grok/skills/` 用户级 + `.grok/skills/` 项目级），AI agent 直接对话即可被自动激活，无需手动加载；命中描述即调用，不得以"没加载技能"为由改用 web_search 或训练数据。
 3. **V3.6.0 已知行为**（2026-07-31 实测）：北交所老号段（43/83/87）返回僵尸数据且不报错，一律先用 `norm_ticker()` 归一化、用 920 新码；`tencent_quote()` 带 `is_stale` 标志；东财研报遇老码抛 ValueError 而非静默返回空。
-4. **验证手段**：`grok inspect` 可查技能清单；跑 `python tests/test_a_stock.py` 或连通性测试确认数据链路；关键结论两源以上交叉验证。
+4. **验证手段（机器保证，已进 CI）**：跑 `python scripts/verify_a_stock_data_v360.py`（本地门禁：双份版本==3.6.0 + md5 一致 + V3.6.0 API 面完整 + 无 V3.5 及更早接口残留 + 四源技能在位，CI 每次提交自动执行）；`python scripts/verify_a_stock_data_v360.py --live`（联网冒烟：腾讯行情 + Tushare/westock/问财 三源链路）；`grok inspect` 可查技能清单；`python tests/test_a_stock.py` 连通性测试；关键结论两源以上交叉验证。
 
 ## 项目约定摘要
 - 项目：A股数据分析工具集（Python），根目录 scripts/ 含数据总线 `scripts/market_api.py`（`from scripts.market_api import api`）、数据守门员 `scripts/data_gate.py`
