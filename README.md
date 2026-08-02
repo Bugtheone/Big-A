@@ -126,7 +126,7 @@ python scripts/tools/daily_feishu_report.py
 | 目录 | 内容 |
 |------|------|
 | `docs/` | 核心文档（SKILL.md·板块映射·年度全景·运维与调度） |
-| `reports/` | 自动生成的分析报告 |
+| `reports/` | 自动生成的分析报告（daily/ 日频 · monthly/ 月度 · sector/ 板块 · stock/ 个股 · raw/ 原始输出，见 reports/README.md） |
 | `log/` | 操作日志与集成指南 |
 | `skills/` | 159+技能自带 SKILL.md |
 
