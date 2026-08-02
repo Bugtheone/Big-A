@@ -7,10 +7,13 @@
 ### 新增
 
 - **核心模块单测 46 例**（Issue #1，测试覆盖率提升）：`tests/test_market_api.py`（29 例：_safe_float/_calc_ma/_is_weekend_date/_resolve_index/_ma_position）+ `tests/test_market_router.py`（4 例：load_config）+ `test_data_gate.py` 扩展（13 例：audit_summary/audit_markdown/diagnose_zero_traps）。全套测试 91 → **137 例全绿**。
+- **东财主源会话冷却 + 自动恢复探测**（Issue #2/#4）：涨停池 push2ex 失效后 30 分钟冷却、板块资金流 push2 失效后 600 秒冷却，期间直接走降级源（同花顺/westock），冷却到期自动重试，恢复即切回主源并打印日志。
+- **北向资金 HKEX 官方源**（Issue #3）：`north_flow` 新增 `hkex_official` 字段（沪/深股通官方成交额 + 十大活跃股，精确区分 Northbound/Southbound），估算值一律标注"⚠️不可信，权威口径见 hkex_official"。
 
 ### 工程化
 
 - 接入 GitHub Issues 模板（bug/feature）+ PR 模板（质量门禁检查清单）+ `docs/需求与任务.md` Backlog（`d7de019`，补标准流程 ①③⑦）
+- P0 四项数据可靠性任务（#1-#4）全部完成闭环
 
 ## [v0.1.0] — 2026-08-02
 

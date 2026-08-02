@@ -67,6 +67,11 @@ if _PROJECT_ROOT not in sys.path:
 
 from scripts.data_gate import gate
 
+# 东财板块资金流主源会话状态（Issue #4）：失败冷却 600s + 自动恢复探测。
+# 东财 push2 clist 被 IP 风控（RemoteDisconnected）时避免每次调用都打失效端点。
+_EM_FF_STATE = {"fail_count": 0, "last_attempt": 0.0}
+_EM_FF_COOLDOWN = 600  # 秒
+
 
 # ============================================================
 #  K线字段索引  [date, high, close, low, open, volume]
@@ -141,6 +146,72 @@ class MarketAPI:
             return datetime.strptime(str(dstr), "%Y-%m-%d").weekday() >= 5
         except (ValueError, TypeError):
             return False
+
+    @staticmethod
+    def _fetch_hkex_daily(trade_date: str) -> Dict[str, Any]:
+        """HKEX 官方沪深股通日统计（备用源速查 · 权威北向，Issue #3）。
+
+        trade_date: 'YYYYMMDD'。
+        返回 {date, sh_turnover_yi, sz_turnover_yi, sh_top10, sz_top10}
+        说明：2024-08-18 起官方停止披露北向净买入，权威口径为成交额
+        （源文件单位为百万元，此处换算为亿元）。
+        失败时返回空 dict（非交易日/网络异常，调用方自行兜底）。
+        """
+        y, m, d = trade_date[:4], trade_date[4:6], trade_date[6:8]
+        url = (f"https://www.hkex.com.hk/chi/csm/DailyStat/"
+               f"data_tab_daily_{y}{m}{d}c.js")
+        try:
+            import requests as _rq
+            s = _rq.Session()
+            s.trust_env = False
+            r = s.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+            if r.status_code != 200:
+                return {}
+            text = r.text.lstrip("\ufeff")
+            start = text.find("[")
+            if start < 0:
+                return {}
+            data = json.loads(text[start:].rstrip().rstrip(";"))
+        except Exception:
+            return {}
+
+        out = {"date": f"{y}-{m}-{d}", "sh_turnover_yi": None,
+               "sz_turnover_yi": None, "sh_top10": [], "sz_top10": []}
+        # 仅取北向（Northbound）；Southbound 为港股通（港股十大活跃股），非北向需排除
+        for entry in data:
+            mk = entry.get("market", "")
+            is_sh = mk == "SSE Northbound"
+            is_sz = mk == "SZSE Northbound"
+            if not (is_sh or is_sz):
+                continue
+            for tbl in entry.get("content", []):
+                t = tbl.get("table", {})
+                cls = t.get("classname", "")
+                if cls == "tradingTable":
+                    tr = t.get("tr", [])
+                    if tr and tr[0].get("td"):
+                        val = tr[0]["td"][0][0].replace(",", "")
+                        try:
+                            val = round(float(val) / 100, 2)  # 百万元 → 亿元
+                        except (ValueError, TypeError):
+                            val = None
+                        if is_sh:
+                            out["sh_turnover_yi"] = val
+                        else:
+                            out["sz_turnover_yi"] = val
+                elif cls == "top10Table":
+                    top = []
+                    for row in t.get("tr", []):
+                        td = row.get("td", [])
+                        if td and len(td[0]) >= 4:
+                            top.append({"rank": td[0][0], "code": td[0][1],
+                                        "name": td[0][2].strip(),
+                                        "turnover": td[0][3]})
+                    if is_sh:
+                        out["sh_top10"] = top
+                    else:
+                        out["sz_top10"] = top
+        return out
 
     @staticmethod
     def _resolve_index(name_or_code: str) -> tuple:
@@ -491,24 +562,34 @@ class MarketAPI:
                 elif streak_dir == "out":
                     streak_days += 1
 
-        # 数据源说明
+        # 数据源说明（Issue #3：官方 2024-08-18 起停止披露北向净买入，估算值一律标注不可信）
         if primary_source == "hexin+tushare":
-            src_note = "同花顺沪股通分钟级真实值 + Tushare深股通估算"
+            src_note = "估算值（同花顺沪股通分钟级 + Tushare深股通估算）⚠️不可信，权威口径见 hkex_official"
         elif primary_source == "hexin_hgt":
-            src_note = "同花顺沪股通分钟级真实值（深股通暂缺）"
+            src_note = "估算值（同花顺沪股通分钟级，深股通暂缺）⚠️不可信，权威口径见 hkex_official"
         elif primary_source == "tushare":
-            src_note = "Tushare估算值（沪+深）"
+            src_note = "Tushare估算值（沪+深）⚠️不可信，权威口径见 hkex_official"
         elif primary_source and primary_source.startswith("kamt"):
-            src_note = "东财kamt（注: 2024.8.19后北向永久归零）"
+            src_note = "东财kamt（注: 2024.8.19后北向永久归零）⚠️不可信"
         elif primary_source == "cache":
-            src_note = "本地离线缓存"
+            src_note = "本地离线缓存 ⚠️不可信，权威口径见 hkex_official"
         else:
-            src_note = f"未知源({primary_source})"
+            src_note = f"未知源({primary_source}) ⚠️不可信"
+
+        # HKEX 官方成交额（权威备胎，Issue #3）——取记录中最新交易日
+        hkex_official = {}
+        try:
+            latest_td = max((r["date"] for r in records), default="").replace("-", "")
+            if latest_td:
+                hkex_official = self._fetch_hkex_daily(latest_td)
+        except Exception:
+            hkex_official = {}
 
         return {
             "records": records,
             "latest": records[0] if records else None,
             "source": src_note,
+            "hkex_official": hkex_official or None,
             "summary": {
                 "total_yi": round(total, 2),
                 "days_in": days_in,
@@ -538,19 +619,34 @@ class MarketAPI:
           ① 东财 board_fund_flow (行业/概念, 含涨跌幅+主力净额)
           ② Westock sector ranking 资金段落 (独立源, 需npx)
 
+        主源会话状态（Issue #4）：东财失败进入 600s 冷却，期间直接走 westock；
+        冷却到期自动重试，恢复即切回主源（note 标记）。
+
         返回: {source, status, items: [...], note}
         """
         result = {"source": "eastmoney", "status": "FAIL", "items": [], "note": ""}
-        # ① 东财
-        try:
-            data = self.board_fund_flow(board_type, period, top_n)
-            if data:
-                result["source"] = "eastmoney"
-                result["status"] = "OK"
-                result["items"] = data
-                return result
-        except Exception as e:
-            result["note"] = f"东财限流: {e}"
+        now = datetime.now().timestamp()
+        cooldown = (_EM_FF_STATE["fail_count"] > 0
+                    and now - _EM_FF_STATE["last_attempt"] < _EM_FF_COOLDOWN)
+        # ① 东财（冷却期内跳过，直接降级）
+        if not cooldown:
+            try:
+                _EM_FF_STATE["last_attempt"] = now
+                data = self.board_fund_flow(board_type, period, top_n)
+                if data:
+                    if _EM_FF_STATE["fail_count"] > 0:
+                        print("[fund_flow] 东财 push2 已恢复，切回主源 ✅")
+                    _EM_FF_STATE["fail_count"] = 0
+                    result["source"] = "eastmoney"
+                    result["status"] = "OK"
+                    result["items"] = data
+                    return result
+                result["note"] = "东财返回空(疑似IP风控)"
+            except Exception as e:
+                result["note"] = f"东财限流: {e}"
+            _EM_FF_STATE["fail_count"] += 1
+        else:
+            result["note"] = f"东财冷却中(近期风控, {_EM_FF_COOLDOWN}s 后自动重试)"
         # ② Westock 资金段落
         try:
             from scripts.utils._westock_helper import sector_ranking
@@ -581,7 +677,8 @@ class MarketAPI:
                 result["source"] = "westock"
                 result["status"] = "OK"
                 result["items"] = norm
-                result["note"] = "东财限流, 已降级Westock"
+                result["note"] = ("东财冷却中已直接降级Westock" if cooldown
+                                  else "东财限流, 已降级Westock")
                 return result
         except Exception as e:
             result["note"] = f"{result['note']}; Westock失败: {e}"
