@@ -129,15 +129,32 @@ def _float_or_str(v):
 
 def _run_westock_raw(args: str, timeout: int = 25) -> tuple[str, str]:
     """执行 Westock CLI 并返回 (stdout, stderr)。
-    通过 cmd /c 执行以避免 PowerShell CLIXML 噪声。
-    显式 encoding='utf-8' + errors='replace' 避免 GBK 解码错误。
+
+    2026-08-02 修复：原实现固定用 `cmd /c "npx ..."` 包装，在 Linux/WSL 上
+    cmd 是 Node shim，会把多词子命令（如 `sector ranking`）拆错成 2 个参数，
+    导致 CLI 报 "too many arguments" 而静默失败。现改为：
+      - POSIX（Linux/macOS）：subprocess 列表调用（shlex 正确处理引号）
+      - Windows：保留 cmd /c 包装
+    并显式清空 npm 代理（本机 ~/.npmrc 曾硬编码失效代理导致 npx 挂起，见 AGENTS.md）。
     """
-    cmd = f'cmd /c "npx -y {WESTOK_CLI} {args}"'
+    import shlex
+
+    if os.name == "nt":
+        cmd: object = f'cmd /c "npx -y {WESTOK_CLI} {args}"'
+        shell = True
+    else:
+        cmd = ["npx", "-y", WESTOK_CLI] + shlex.split(args)
+        shell = False
+
+    # 绕过本机可能存在的失效 npm 代理配置（直连 registry 与 westock 接口均可达）
+    env = {**os.environ,
+           "npm_config_proxy": "", "npm_config_https_proxy": "",
+           "NO_PROXY": "*", "no_proxy": "*"}
 
     try:
         cp = subprocess.run(
-            cmd, shell=True, capture_output=True, encoding='utf-8',
-            errors='replace', timeout=timeout, cwd=PROJECT_ROOT,
+            cmd, shell=shell, capture_output=True, encoding='utf-8',
+            errors='replace', timeout=timeout, cwd=PROJECT_ROOT, env=env,
         )
         return cp.stdout.strip(), cp.stderr.strip()
     except subprocess.TimeoutExpired:

@@ -135,6 +135,14 @@ class MarketAPI:
         return sum(values[-n:]) / n
 
     @staticmethod
+    def _is_weekend_date(dstr: str) -> bool:
+        """判断 'YYYY-MM-DD' 是否为周六/周日（用于过滤非交易日估算数据）。"""
+        try:
+            return datetime.strptime(str(dstr), "%Y-%m-%d").weekday() >= 5
+        except (ValueError, TypeError):
+            return False
+
+    @staticmethod
     def _resolve_index(name_or_code: str) -> tuple:
         """解析指数名称→(code, market)。
          支持中文名(如'上证指数')和代码(如'000001')"""
@@ -271,6 +279,10 @@ class MarketAPI:
         """九大指数实时快照（指定names可过滤）。
 
         返回: [{name, code, price, change_pct, high, low, volume, turnover_yi, pe}, ...]
+        ⚠️ 成交额口径：腾讯对指数返回的 turnover 为"当日成交额"——
+        沪指=沪市总成交、深证成指=深市总成交（故两市总额=二者之和，行业标准口径）；
+        Tushare 指数 amount 为指数样本成交，两者在深市差异可达 1.6~1.9 倍，
+        跨源比对时请用全市场 ts_daily amount 加总。
         """
         data = gate.tc_fetch_indices(names=names)
         for it in data:
@@ -438,6 +450,10 @@ class MarketAPI:
         records = []
         primary_source = "unknown"
         for it in raw:
+            # 过滤周末：断供后估算缓存可能产生周六/周日的"当日"数据（2026-08-02 实测），
+            # 非交易日北向无成交，直接剔除，避免污染统计。
+            if self._is_weekend_date(it.get("date", "")):
+                continue
             net_flow = round(self._safe_float(it.get("total_yi", 0)), 2)
             direction = "流入" if net_flow > 0 else ("流出" if net_flow < 0 else "持平")
             rec = {

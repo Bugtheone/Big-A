@@ -43,18 +43,36 @@ def ths_eps_forecast(code: str) -> list:
         return out
     except Exception as e: return []
 
-def ths_hot_reason() -> list:
-    """同花顺当日强势股+涨停原因。返回 [{code,name,pct,reason,turnover,pe,market_cap}, ...]"""
+def ths_hot_reason(date: str = None) -> list:
+    """同花顺当日强势股+涨停原因。返回 [{code,name,pct,reason,turnover,pe,market_cap}, ...]
+
+    端点：zx.10jqka.com.cn/event/api/getharden（V3.6.0 文档化端点）。
+    旧端点 data.10jqka.com.cn/dataapi/rank/hot_reason 已 404 失效（2026-08-02 实测）。
+    date 为 None 时自动取最近交易日（跳过周末，最多回退 7 天）。
+    """
+    from datetime import date as _date, timedelta
+
+    if date is None:
+        date = _date.today()
+        for _ in range(7):
+            if date.weekday() < 5:
+                break
+            date -= timedelta(days=1)
+        date = date.strftime("%Y-%m-%d")
+
+    url = (f"http://zx.10jqka.com.cn/event/api/getharden/"
+           f"date/{date}/orderby/date/orderway/desc/charset/GBK/")
     try:
-        r = _session.get("https://data.10jqka.com.cn/dataapi/rank/hot_reason",
-            params={"field":"199112,10,9001,330323,330324,330325,9002,330329,133971,133970,1968584,3475914",
-                    "filter":"HS,GEM2STAR","page":1,"limit":50},
-            headers={"User-Agent":UA},timeout=10)
-        items = (r.json().get("data") or {}).get("info",[])
-    except Exception as e: return []
-    return [{"code":it.get("code"),"name":it.get("name"),"pct":it.get("change_rate"),
-             "reason":it.get("reason_type",""),"turnover":it.get("turnover_rate"),
-             "pe":it.get("pe_ttm"),"market_cap":it.get("float_market_value")} for it in items]
+        r = _session.get(url, headers={"User-Agent": UA}, timeout=10)
+        d = r.json()
+    except Exception as e:
+        return []
+    if d.get("errocode", 0) != 0:
+        return []
+    rows = d.get("data") or []
+    return [{"code": it.get("code"), "name": it.get("name"), "pct": it.get("zhangfu"),
+             "reason": it.get("reason", ""), "turnover": it.get("huanshou"),
+             "pe": None, "market_cap": None} for it in rows]
 
 def ths_hot_list(period: str = "hour") -> list:
     """同花顺热榜。period: hour/day。返回 [{rank,code,name,heat,pct,rank_chg,concepts,tag}, ...]"""

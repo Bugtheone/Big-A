@@ -116,7 +116,11 @@ def ts_suspend(ts_code=None, suspend_date=None):
 # ========== II. 基本面 ==========
 
 def ts_daily_basic(trade_date=None, ts_code=None):
-    """PE/PB/市值/换手率/量比——波段选股核心"""
+    """PE/PB/市值/换手率/量比——波段选股核心
+
+    ⚠️ 注意：daily_basic 无 pre_close / pct_chg 字段（2026-08-02 实测），
+    涨跌家数/涨跌幅统计请用 ts_daily()。
+    """
     from scripts.tushare_api import get_pro
     pro = get_pro()
     kw = {"trade_date": trade_date or datetime.now().strftime("%Y%m%d")}
