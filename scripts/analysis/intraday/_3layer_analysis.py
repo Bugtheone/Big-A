@@ -5,6 +5,9 @@
 数据验证: 腾讯(主源) + 东财 + 同花顺 + 腾讯K线(验证) + mootdx(验证)
 """
 import sys, os, json, time, urllib.request, requests
+_session = requests.Session()
+_session.trust_env = False
+
 from datetime import datetime
 
 os.chdir(r"C:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345")
@@ -82,7 +85,7 @@ if __name__ == "__main__":
     # 1.3 北向资金
     north_flow = None
     try:
-        r = requests.get("https://data.hexin.cn/market/hsgtApi/method/dayChart/",
+        r = _session.get("https://data.hexin.cn/market/hsgtApi/method/dayChart/",
             headers={"User-Agent": UA, "Host": "data.hexin.cn", "Referer": "https://data.hexin.cn/"}, timeout=10)
         d = r.json()
         hgt = [x for x in d.get("hgt",[]) if x is not None]
@@ -97,7 +100,7 @@ if __name__ == "__main__":
     # 1.4 市场广度
     breadth_total = None
     try:
-        r = requests.get("https://push2.eastmoney.com/api/qt/clist/get", params={
+        r = _session.get("https://push2.eastmoney.com/api/qt/clist/get", params={
             "pn":"1","pz":"1","po":"0","np":"1","fltt":"2","invt":"2","fid":"f3",
             "fs":"m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
             "fields":"f2,f3,f12,f14"
@@ -115,7 +118,7 @@ if __name__ == "__main__":
     # 2.1 东财行业排名
     industry_rank = []
     try:
-        r = requests.get("https://push2.eastmoney.com/api/qt/clist/get", params={
+        r = _session.get("https://push2.eastmoney.com/api/qt/clist/get", params={
             "pn":"1","pz":"120","po":"1","np":"1","fltt":"2","invt":"2","fid":"f3",
             "fs":"m:90+t:2",
             "fields":"f2,f3,f4,f12,f14,f104,f105,f128,f136,f140"
@@ -136,7 +139,7 @@ if __name__ == "__main__":
     hot_list = []
     concept_heat = {}
     try:
-        r = requests.get(
+        r = _session.get(
             "https://dq.10jqka.com.cn/fuyao/hot_list_data/out/hot_list/v1/stock",
             params={"stock_type":"a","type":"hour","list_type":"normal"},
             headers={"User-Agent": UA}, timeout=10)
@@ -173,7 +176,7 @@ if __name__ == "__main__":
         try:
             code = s["code"]
             market_code = "1" if code.startswith("6") else "0"
-            r = requests.get("https://push2.eastmoney.com/api/qt/slist/get", params={
+            r = _session.get("https://push2.eastmoney.com/api/qt/slist/get", params={
                 "fltt":"2","invt":"2","secid":f"{market_code}.{code}",
                 "spt":"3","pi":"0","pz":"50","po":"1",
                 "fields":"f12,f14"
@@ -195,7 +198,7 @@ if __name__ == "__main__":
     try:
         from datetime import date
         td = date.today().strftime("%Y%m%d")
-        r = requests.get("https://push2ex.eastmoney.com/getTopicZTPool", params={
+        r = _session.get("https://push2ex.eastmoney.com/getTopicZTPool", params={
             "ut":"7eea3edcaed734bea9cbfc24409ed989",
             "dpt":"wz.ztzt","Pageindex":0,"pagesize":200,
             "sort":"fbt:asc","date":td
@@ -219,7 +222,7 @@ if __name__ == "__main__":
     # 3.2 跌停板
     dt_pool = []
     try:
-        r = requests.get("https://push2ex.eastmoney.com/getTopicDTPool", params={
+        r = _session.get("https://push2ex.eastmoney.com/getTopicDTPool", params={
             "ut":"7eea3edcaed734bea9cbfc24409ed989",
             "dpt":"wz.ztzt","Pageindex":0,"pagesize":200,
             "sort":"fund:asc","date":td
@@ -242,7 +245,7 @@ if __name__ == "__main__":
         try:
             code = s["code"]
             market_code = "1" if code.startswith("6") else "0"
-            r = requests.get("https://push2.eastmoney.com/api/qt/stock/fflow/kline/get", params={
+            r = _session.get("https://push2.eastmoney.com/api/qt/stock/fflow/kline/get", params={
                 "secid":f"{market_code}.{code}","klt":1,
                 "fields1":"f1,f2,f3,f7",
                 "fields2":"f51,f52,f53,f54,f55,f56,f57"
@@ -277,7 +280,7 @@ if __name__ == "__main__":
 
     # XV2: 东财vs腾讯 上证对比
     try:
-        r = requests.get("https://push2.eastmoney.com/api/qt/stock/get", params={
+        r = _session.get("https://push2.eastmoney.com/api/qt/stock/get", params={
             "fltt":"2","invt":"2","fields":"f43,f44","secid":"1.000001"
         }, headers={"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"}, timeout=10)
         em_sh = r.json().get("data",{})

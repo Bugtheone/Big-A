@@ -17,8 +17,8 @@ def _cninfo_orgid(code: str) -> str:
     global _CNINFO_ORGID_MAP
     if not _CNINFO_ORGID_MAP:
         try:
-            r = requests.get("http://www.cninfo.com.cn/new/data/szse_stock.json",
-                             headers={"User-Agent": UA}, timeout=15)
+            r = _session.get("http://www.cninfo.com.cn/new/data/szse_stock.json",
+                              headers={"User-Agent": UA}, timeout=15)
             _CNINFO_ORGID_MAP = {s["code"]: s["orgId"]
                                  for s in r.json().get("stockList", [])}
         except Exception as e:

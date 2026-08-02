@@ -9,8 +9,9 @@
 import sys, os, json, time, urllib.request, requests
 from datetime import datetime
 
-os.chdir(r"C:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345")
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _PROJECT_ROOT)
+os.chdir(_PROJECT_ROOT)
 
 BASE_DIR = os.getcwd()
 NOW = datetime.now()
@@ -20,6 +21,9 @@ TRADE_DATE = NOW.strftime("%Y%m%d")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
 p = print
+
+_session = requests.Session()
+_session.trust_env = False
 
 # ============ 1. 腾讯财经 — 指数实时行情 (主源A) ============
 def tencent_quote(codes: list[str]) -> dict:
@@ -117,7 +121,7 @@ if __name__ == "__main__":
     hot_list = []
     north_flow = None
     try:
-        r = requests.get(
+        r = _session.get(
             "https://dq.10jqka.com.cn/fuyao/hot_list_data/out/hot_list/v1/stock",
             params={"stock_type": "a", "type": "hour", "list_type": "normal"},
             headers={"User-Agent": UA}, timeout=10
@@ -139,7 +143,7 @@ if __name__ == "__main__":
 
     # 北向资金
     try:
-        r = requests.get(
+        r = _session.get(
             "https://data.hexin.cn/market/hsgtApi/method/dayChart/",
             headers={"User-Agent": UA, "Host": "data.hexin.cn", "Referer": "https://data.hexin.cn/"},
             timeout=10
@@ -164,7 +168,7 @@ if __name__ == "__main__":
     industry_rank = []
     try:
         from market_api import api  # 复用已有封装
-        r = requests.get(
+        r = _session.get(
             "https://push2.eastmoney.com/api/qt/clist/get",
             params={
                 "pn": "1", "pz": "100", "po": "1", "np": "1",
@@ -223,7 +227,7 @@ if __name__ == "__main__":
                   "last_time": "", "refresh_type": "1", "rn": "10"}
         qs = "&".join(f"{k}={params[k]}" for k in sorted(params))
         sign = hashlib.md5(hashlib.sha1(qs.encode()).hexdigest().encode()).hexdigest()
-        r = requests.get(f"https://www.cls.cn/v1/roll/get_roll_list?{qs}&sign={sign}",
+        r = _session.get(f"https://www.cls.cn/v1/roll/get_roll_list?{qs}&sign={sign}",
                          headers={"User-Agent": UA, "Referer": "https://www.cls.cn/"}, timeout=10)
         for item in r.json().get("data", {}).get("roll_data", [])[:10]:
             ts = item.get("ctime")
@@ -236,7 +240,7 @@ if __name__ == "__main__":
     # ============ 7. 深度广度数据 ============
     breadth_test = None
     try:
-        r = requests.get(
+        r = _session.get(
             "https://push2.eastmoney.com/api/qt/clist/get",
             params={
                 "pn": "1", "pz": "1", "po": "0", "np": "1",

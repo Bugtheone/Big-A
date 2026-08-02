@@ -1,5 +1,8 @@
 """同花顺当日强势股 + 题材归因"""
 import requests, sys
+_session = requests.Session()
+_session.trust_env = False
+
 from collections import Counter
 from datetime import date
 
@@ -10,7 +13,7 @@ today = date.today().strftime("%Y-%m-%d")
 
 url = f"http://zx.10jqka.com.cn/event/api/getharden/date/{today}/orderby/date/orderway/desc/charset/GBK/"
 print(f"请求日期: {today}")
-r = requests.get(url, headers={"User-Agent": UA}, timeout=10)
+r = _session.get(url, headers={"User-Agent": UA}, timeout=10)
 d = r.json()
 
 if d.get("errocode", 0) != 0:
@@ -19,7 +22,7 @@ if d.get("errocode", 0) != 0:
     print("\n尝试前一天...")
     yesterday = "2026-07-25"  # 上周五
     url2 = f"http://zx.10jqka.com.cn/event/api/getharden/date/{yesterday}/orderby/date/orderway/desc/charset/GBK/"
-    r2 = requests.get(url2, headers={"User-Agent": UA}, timeout=10)
+    r2 = _session.get(url2, headers={"User-Agent": UA}, timeout=10)
     d = r2.json()
     if d.get("errocode", 0) != 0:
         print(f"前一天也失败: {d.get('errormsg', '')}")

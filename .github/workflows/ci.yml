@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: 质量门禁（语法+规范+单元测试）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: 语法检查（全项目 py_compile）
+        run: |
+          find scripts tests -name "*.py" -print0 | xargs -0 python -m py_compile
+          echo "语法检查通过"
+
+      - name: 编码规范检查（禁裸 except / 禁直接 requests 调用）
+        run: |
+          set -e
+          # 1. 无裸 except（except: 单独出现视为违规）
+          BARE=$(grep -rnP 'except\s*:' scripts/ --include='*.py' | grep -vP 'except\s+Exception' || true)
+          if [ -n "$BARE" ]; then
+            echo "发现裸 except（违规，应改为 except Exception）:"
+            echo "$BARE"
+            exit 1
+          fi
+          # 2. 禁止直接 requests.get/post（应封装 Session 且带 trust_env=False）
+          DIRECT=$(grep -rnP 'requests\.(get|post)\(' scripts/ --include='*.py' || true)
+          if [ -n "$DIRECT" ]; then
+            echo "发现直接 requests.get/post 调用（应封装 Session 并设 trust_env=False）:"
+            echo "$DIRECT"
+            exit 1
+          fi
+          echo "编码规范检查通过"
+
+      - name: 单元测试（纯函数，无网络依赖）
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          # config/ 已被 gitignore，CI 中不存在；创建占位配置供 test_config_loads 使用
+          mkdir -p config
+          echo '{"token": "placeholder_for_ci"}' > config/tushare_config.json
+          python -m pytest tests/test_core_functions.py -v --tb=short

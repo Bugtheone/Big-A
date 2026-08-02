@@ -1,5 +1,8 @@
 """北向资金实时流向分析"""
 import requests, sys, pandas as pd
+_session = requests.Session()
+_session.trust_env = False
+
 from datetime import date
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -15,7 +18,7 @@ today = date.today().strftime("%Y-%m-%d")
 # === 实时分钟流向 ===
 url = "https://data.hexin.cn/market/hsgtApi/method/dayChart/"
 try:
-    r = requests.get(url, headers=HSGT_HEADERS, timeout=15)
+    r = _session.get(url, headers=HSGT_HEADERS, timeout=15)
     d = r.json()
     times = d.get("time", [])
     hgt = d.get("hgt", [])

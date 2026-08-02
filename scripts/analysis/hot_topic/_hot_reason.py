@@ -5,6 +5,9 @@ import sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 import requests, urllib.request, json
+_session = requests.Session()
+_session.trust_env = False
+
 from collections import Counter
 from datetime import date
 
@@ -13,7 +16,7 @@ today = date.today().strftime("%Y-%m-%d")
 
 # ── Step 1: 同花顺强势股题材归因 ──
 url = f"http://zx.10jqka.com.cn/event/api/getharden/date/{today}/orderby/date/orderway/desc/charset/GBK/"
-r = requests.get(url, headers={"User-Agent": UA}, timeout=10)
+r = _session.get(url, headers={"User-Agent": UA}, timeout=10)
 data = r.json()
 if data.get("errocode", 0) != 0:
     print(f"API错误: {data.get('errormsg', '')}")

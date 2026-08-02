@@ -1,4 +1,7 @@
 import requests
+_session = requests.Session()
+_session.trust_env = False
+
 import json
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
@@ -8,7 +11,7 @@ print("=" * 60)
 print("【同花顺热榜 — 今日最热门股票 + 概念标签】")
 print("=" * 60)
 try:
-    r = requests.get(
+    r = _session.get(
         "https://dq.10jqka.com.cn/fuyao/hot_list_data/out/hot_list/v1/stock",
         params={"stock_type": "a", "type": "day", "list_type": "normal"},
         headers={"User-Agent": UA}, timeout=10
@@ -40,7 +43,7 @@ print("【东财人气榜 TOP20】")
 print("=" * 60)
 EM_HOT_BODY = {"appId": "appId01", "globalId": "786e4c21-70dc-435a-93bb-38"}
 try:
-    r = requests.post(
+    r = _session.post(
         "https://emappdata.eastmoney.com/stockrank/getAllCurrentList",
         json={**EM_HOT_BODY, "marketType": "", "pageNo": 1, "pageSize": 20},
         headers={"User-Agent": UA}, timeout=10
@@ -49,7 +52,7 @@ try:
     if data:
         # 补名称/价格
         secids = [("0." if it["sc"].startswith("SZ") else "1.") + it["sc"][2:] for it in data]
-        u = requests.get(
+        u = _session.get(
             "https://push2.eastmoney.com/api/qt/ulist.np/get",
             params={
                 "ut": "f057cbcbce2a86e2866ab8877db1d059", "fltt": 2, "invt": 2,
@@ -78,7 +81,7 @@ print("【东财热门概念命中 — TOP5热门股被归到什么概念在炒�
 print("=" * 60)
 try:
     # 先再拉一次人气榜取TOP5
-    r2 = requests.post(
+    r2 = _session.post(
         "https://emappdata.eastmoney.com/stockrank/getAllCurrentList",
         json={**EM_HOT_BODY, "marketType": "", "pageNo": 1, "pageSize": 5},
         headers={"User-Agent": UA}, timeout=10
@@ -90,7 +93,7 @@ try:
         name = nm.get(code, ("?", None, None))[0]
         print(f"\n  {name}({code}) 的概念命中:")
         try:
-            r3 = requests.post(
+            r3 = _session.post(
                 "https://emappdata.eastmoney.com/stockrank/getHotStockRankList",
                 json={**EM_HOT_BODY, "srcSecurityCode": prefix + code},
                 headers={"User-Agent": UA}, timeout=10
