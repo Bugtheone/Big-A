@@ -12,6 +12,14 @@ import subprocess
 import sys
 
 # 纯库模块豁免（被 import 使用，顶层无副作用，主入口非必需）
+# 豁免依据（防止滥豁免，新增条目必须同步补充理由）：
+#   cninfo_api.py        巨潮公告/互动易 API 封装库（仅被其他模块 import）
+#   eastmoney_info.py    东财 F10 信息封装库（仅被其他模块 import）
+#   index_constants.py   九指数常量/价格区间纯数据定义（零副作用）
+#   mootdx_api.py        通达信行情客户端封装库（仅被其他模块 import）
+#   sina_api.py          新浪财经 API 封装库（仅被其他模块 import）
+#   tushare_pro_data.py  Tushare Pro 38 函数封装库（仅被其他模块 import）
+#   valuation.py         估值计算纯函数模块（被 market_api 等 import）
 LIB_ALLOWLIST = {
     "scripts/cninfo_api.py",
     "scripts/eastmoney_info.py",
