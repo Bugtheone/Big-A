@@ -48,4 +48,4 @@ jobs:
           # config/ 已被 gitignore，CI 中不存在；创建占位配置供 test_config_loads 使用
           mkdir -p config
           echo '{"token": "placeholder_for_ci"}' > config/tushare_config.json
-          python -m pytest tests/test_core_functions.py -v --tb=short
+          python -m pytest tests/test_core_functions.py tests/test_data_validator.py -v --tb=short
