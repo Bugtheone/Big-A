@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────
+# 工程化工具链配置（ruff + mypy）
+# 规则集说明：存量代码遗留 2000+ 风格类告警（E4/E5/F401/F541），
+# 一次全量整改风险大，故质量门禁先启用「真实 bug 类」规则：
+#   E9  运行时错误（SyntaxError/IndentationError 等）
+#   F63 is/is-not 与字面量比较（F632）
+#   F7  语法类逻辑错误（F701-F707）
+#   F82 未定义名（F821/F822/F823）
+#   E722 裸 except（项目铁律，AGENTS.md 强制）
+# 风格类规则后续按目录增量开启（每开启一批需全绿后合入）。
+# ─────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    "a-stock-data-main",
+    "skills",
+    "data",
+    "reports",
+    "log",
+    "assets",
+    ".grok",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "E722"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+follow_imports = "skip"
+warn_unused_ignores = false
+files = [
+    "scripts/data_validator.py",
+    "scripts/index_constants.py",
+    "scripts/valuation.py",
+]

@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+# pre-commit 钩子（本地执行，无网络依赖）
+# 用法：pip install pre-commit && pre-commit install
+# 说明：GitHub 不可达的环境下使用 repo: local + language: python，
+#       钩子运行时由 pre-commit 自建 venv 并从 PyPI 安装 ruff/mypy。
+# ─────────────────────────────────────────────────────────────
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: "ruff (质量门禁: bug 类规则)"
+        entry: ruff check
+        language: python
+        types: [python]
+        additional_dependencies: ["ruff>=0.16"]
+
+      - id: mypy
+        name: "mypy (核心模块类型检查)"
+        entry: mypy
+        language: python
+        types: [python]
+        files: ^scripts/(data_validator|index_constants|valuation)\.py$
+        additional_dependencies: ["mypy>=1.10"]
+
+      - id: main-entry
+        name: "main-entry (主入口合规检查)"
+        entry: python scripts/tools/check_main_entry.py
+        language: system
+        pass_filenames: false
