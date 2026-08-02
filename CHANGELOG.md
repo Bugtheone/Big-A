@@ -2,6 +2,16 @@
 
 本项目遵循语义化版本（SemVer）。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased] — 2026-08-02
+
+### 新增
+
+- **核心模块单测 46 例**（Issue #1，测试覆盖率提升）：`tests/test_market_api.py`（29 例：_safe_float/_calc_ma/_is_weekend_date/_resolve_index/_ma_position）+ `tests/test_market_router.py`（4 例：load_config）+ `test_data_gate.py` 扩展（13 例：audit_summary/audit_markdown/diagnose_zero_traps）。全套测试 91 → **137 例全绿**。
+
+### 工程化
+
+- 接入 GitHub Issues 模板（bug/feature）+ PR 模板（质量门禁检查清单）+ `docs/需求与任务.md` Backlog（`d7de019`，补标准流程 ①③⑦）
+
 ## [v0.1.0] — 2026-08-02
 
 首个工程化基线版本：引入质量门禁工具链，修复存量真实 bug。

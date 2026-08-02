@@ -338,3 +338,96 @@ class TestAuditAndStrict:
         g._v_price(10.5, "平安银行", "sz000001", "T", "t")
         g._v_chg(2.0, "平安银行", "sz000001", "T", "t")
         assert g._fields == 2
+
+
+# ============ audit_summary 审计统计 ============
+
+class TestAuditSummary:
+    def test_empty_audit(self):
+        g = DataGate()
+        assert g.audit_summary() == {"OK": 0, "INFO": 0, "WARN": 0, "FAIL": 0, "CROSS": 0}
+
+    def test_mixed_levels_counted(self):
+        g = DataGate()
+        g._v_price(0, "平安银行", "sz000001", "T", "t")      # FAIL
+        g._v_vol(0, "成交量", "T", "t")                        # INFO
+        g._v_turnover(200, "成交额", "T", "t")                 # WARN
+        s = g.audit_summary()
+        assert s["FAIL"] == 1 and s["INFO"] == 1 and s["WARN"] == 1
+
+    def test_multiple_same_level(self):
+        g = DataGate()
+        g._v_price(-1, "平安银行", "sz000001", "T", "t")
+        g._v_price(-2, "平安银行", "sz000001", "T", "t")
+        assert g.audit_summary()["FAIL"] == 2
+
+
+# ============ audit_markdown 审计报告格式化 ============
+
+class TestAuditMarkdown:
+    def test_empty_note(self):
+        g = DataGate()
+        out = g.audit_markdown()
+        assert "无数据调用记录" in out
+        assert "## 数据验证审计报告" in out
+
+    def test_header_counts(self):
+        g = DataGate()
+        g._v_price(0, "平安银行", "sz000001", "T", "t")   # FAIL
+        g._v_vol(0, "成交量", "T", "t")                     # INFO
+        out = g.audit_markdown()
+        assert "FAIL:1" in out and "INFO:1" in out
+
+    def test_fail_section_with_field(self):
+        g = DataGate()
+        g._v_price(0, "平安银行", "sz000001", "T", "t")
+        out = g.audit_markdown()
+        assert "[FAIL] 失败" in out
+        assert "平安银行" in out
+
+    def test_consensus_detail_rendered(self):
+        g = DataGate()
+        g._log(AuditLevel.CROSS, "CrossSource", "north_flow", "北向资金·亿",
+               10.5, "双源一致", "msg", em=9.8, ts=11.2, consensus=10.5)
+        out = g.audit_markdown()
+        assert "共识:10.50" in out
+        assert "东财:9.8" in out
+
+    def test_truncation_at_20(self):
+        g = DataGate()
+        for i in range(25):
+            g._log(AuditLevel.INFO, "T", "m", f"f{i}", i, ">0", "批量占位")
+        out = g.audit_markdown()
+        assert "还有 5 条" in out  # 25 - 20 = 5
+
+
+# ============ diagnose_zero_traps 零值陷阱诊断 ============
+
+class TestDiagnoseZeroTraps:
+    def test_north_zero_with_turnover_warns(self):
+        g = DataGate()
+        g.diagnose_zero_traps(turnover_yi=8000, north_flow_yi=0.0, zt_count=None)
+        warns = [e for e in g.audit if e.level == AuditLevel.WARN]
+        assert any("ZERO_TRAP" in e.message and "北向" in e.message for e in warns)
+
+    def test_north_zero_low_turnover_no_warn(self):
+        g = DataGate()
+        g.diagnose_zero_traps(turnover_yi=200, north_flow_yi=0.0, zt_count=None)
+        assert g.audit == []
+
+    def test_zt_zero_with_turnover_warns(self):
+        g = DataGate()
+        g.diagnose_zero_traps(turnover_yi=8000, north_flow_yi=None, zt_count=0)
+        warns = [e for e in g.audit if e.level == AuditLevel.WARN]
+        assert any("ZERO_TRAP" in e.message and "涨停" in e.message for e in warns)
+
+    def test_normal_values_no_warn(self):
+        g = DataGate()
+        g.diagnose_zero_traps(turnover_yi=8000, north_flow_yi=25.0, zt_count=50)
+        assert g.audit == []
+
+    def test_both_traps_together(self):
+        g = DataGate()
+        g.diagnose_zero_traps(turnover_yi=8000, north_flow_yi=0.0, zt_count=0)
+        warns = [e for e in g.audit if e.level == AuditLevel.WARN]
+        assert len(warns) == 2
