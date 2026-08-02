@@ -25,7 +25,7 @@ ZR_RATE_MIN, ZR_RATE_MAX = 0.0, 80.0
 TURNOVER_MIN, TURNOVER_MAX = 1000, 50000
 INDEX_PCT_RANGE = (-12.0, 12.0)
 
-INDEX_PRICE_RANGES: Dict[str, Tuple[float, float]] = dict(INDEX_PRICE_BOUNDS)  # noqa: F821（收敛九指数定义，见下方导入）
+INDEX_PRICE_RANGES: Dict[str, Tuple[float, float]] = dict(INDEX_PRICE_BOUNDS)
 
 class VStatus(Enum):
     PASS = "PASS"
@@ -272,7 +272,7 @@ class DataValidator:
 
     # ==================== 一键全量审查 ====================
 
-    def validate_all(self, date: str = None) -> List[VResult]:
+    def validate_all(self, date: Optional[str] = None) -> List[VResult]:
         """一键全量审查。返回所有VResult列表，直接打印或消费。"""
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
@@ -337,7 +337,7 @@ class DataValidator:
             lines.append("")
         return "\n".join(lines)
 
-    def print_report(self, date: str = None):
+    def print_report(self, date: Optional[str] = None):
         """直接打印验证报告到控制台。"""
         results = self.validate_all(date)
         output = self.format_report(results)

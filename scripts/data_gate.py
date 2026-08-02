@@ -46,7 +46,8 @@ class AuditEntry:
 
 # ==================== 验证规则常量 ====================
 
-from scripts.index_constants import INDEX_PRICE_BOUNDS  # noqa: E402（收敛九指数定义，原此处复制）
+# noqa: E402
+from scripts.index_constants import INDEX_PRICE_BOUNDS  # 收敛九指数定义，原此处复制
 
 BOARD_LIMITS = {"主板": 11.0, "创业板": 22.0, "科创板": 22.0, "北交所": 33.0}
 
