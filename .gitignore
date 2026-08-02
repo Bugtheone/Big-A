@@ -68,6 +68,11 @@ _out.txt
 
 # ── IDE/工具数据（含敏感浏览器会话） ──
 .reasonix/
+
+# ── 恢复 Grok 项目技能目录（A股数据技能，团队共享） ──
+!/.grok/
+!/.grok/skills/
+!/.grok/skills/**
 data/iwencai_browser_profile/
 data/*.txt
 data/*.csv
