@@ -1,0 +1,76 @@
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ── IDE ──
+.codebuddy/
+.codegraph/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── 配置（敏感信息） ──
+config/
+
+# ── Client 安装/临时文件 ──
+.playwright-cli/
+
+# ── 系统 ──
+.DS_Store
+Thumbs.db
+
+# ── 日志/临时 ──
+*.log
+log/
+_*.ps1
+*.tmp
+
+# ── 数据文件（非必要不追踪原始数据） ──
+data/skills/skillhub_full.html
+data/clawhub/
+data/analysis/*.txt
+data/analysis/card_vue_data.txt
+data/analysis/js_analysis.txt
+
+# ── 技能目录（跟随安装产生，不必追踪） ──
+skills/
+
+# ── 生成报告 ──
+reports/
+
+# ── 静态资源 ──
+assets/
+
+# ── 外部包 ──
+a-stock-data-main/
+
+# ── 数据缓存 ──
+data/*.json
+data/*.log
+data/analysis/
+
+# ── 测试缓存 ──
+.pytest_cache/
+
+# ── 分析脚本输出 ──
+_*.txt
+_*.md
+_*.json
+.out
+_out.txt
+*_out.txt
+
+# ── IDE/工具数据（含敏感浏览器会话） ──
+.reasonix/
+data/iwencai_browser_profile/
+data/*.txt
+data/*.csv
+data/*.html
+data/*.jsonl
+scripts/_archive/

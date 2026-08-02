@@ -1,0 +1,29 @@
+# ── 项目依赖 ──
+# 安装: pip install -r requirements.txt
+
+# 核心数据
+requests>=2.28
+pandas>=1.5
+numpy>=1.24
+
+# A股数据
+mootdx>=1.0            # 通达信行情（优先源）
+tushare>=1.4           # Tushare.pro 数据源（Token 需在 config/tushare_config.json 配置）
+pywencai>=0.3          # iwencai.com 数据源（cookie 认证，无需 API Key）
+
+# 技术分析
+stockstats>=0.4        # 技术指标计算
+
+# Web 爬取（一次性技能抓取脚本）
+playwright>=1.40       # 浏览器自动化
+lxml>=4.9              # HTML解析
+beautifulsoup4>=4.12   # HTML解析（备用）
+
+# 开发
+pytest>=7.0            # 测试框架
+
+# iwencai SkillHub
+iwencai-skillhub-cli>=0.0.4  # 技能安装CLI
+
+# iwencai 官方 API
+# 环境变量: IWENCAI_API_KEY, IWENCAI_BASE_URL
