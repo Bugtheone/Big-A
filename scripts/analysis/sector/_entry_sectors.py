@@ -294,7 +294,7 @@ if __name__ == "__main__":
             if gate0 == "FAIL":
                 p(f"    → 一票否决! 仓位上限≤20%, 仅防御性配置")
         else:
-            p(f"  Gate0: 周K线数据不足({len(klines) if klines else 0}根)")
+            p(f"  Gate0: 周K线数据不足({len(kls) if kls else 0}根)")
             gate0 = "UNKNOWN"
     except Exception as e:
         p(f"  Gate0: 获取失败({e})")
