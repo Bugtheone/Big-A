@@ -62,10 +62,10 @@ ZR_RATE_MIN, ZR_RATE_MAX = 0.0, 80.0
 
 
 def _infer_board(code: str) -> str:
-    pure = code.replace("sh","").replace("sz","")
+    pure = code.replace("sh", "").replace("sz", "").replace("bj", "")
     if pure.startswith("688"): return "科创板"
     if pure.startswith("300") or pure.startswith("301"): return "创业板"
-    if pure.startswith(("4","8","92")): return "北交所"
+    if pure.startswith(("4", "8", "92")): return "北交所"
     return "主板"
 
 
