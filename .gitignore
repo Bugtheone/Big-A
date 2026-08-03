@@ -79,3 +79,7 @@ data/*.csv
 data/*.html
 data/*.jsonl
 scripts/_archive/
+
+# ── 个人笔记/工具产物（scratch/） ──
+scratch/
+.aider.*
