@@ -137,6 +137,57 @@ def _shenwan(keyword: str, sw_cls: list = None) -> list:
     return out
 
 
+def concept_daily(keyword: str = "") -> list:
+    """概念板块当日涨跌（新浪 fenlei=1，实时/当日可用，解决 ths_daily 滞后 1 日）。
+
+    返回 [{源:'新浪概念', 板块, 涨跌%}]；keyword 为空返回全量 TOP。
+    注：口径为成分股平均涨跌幅（新浪），与同花顺概念指数(ths)数值略有差异。
+    """
+    import requests
+    s = requests.Session(); s.trust_env = False
+    s.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://finance.sina.com.cn/"})
+    url = ("https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+           "MoneyFlow.ssl_bkzj_bk")
+    kws = _keywords(keyword) if keyword else []
+    out = []
+    try:
+        r = s.get(url, params={"page": 1, "num": 200, "sort": "netamount", "asc": 0, "fenlei": 1}, timeout=10)
+        data = json.loads(r.text)
+        for d in data:
+            nm = d.get("name") or ""
+            if not kws or _match(nm, kws):
+                out.append({"源": "新浪概念", "板块": nm,
+                            "涨跌%": round(float(d.get("avg_changeratio") or 0) * 100, 2)})
+    except Exception as e:
+        out.append({"源": "新浪概念", "板块": f"ERROR: {e}", "涨跌%": None})
+    if not keyword:
+        out.sort(key=lambda r: -(r["涨跌%"] or 0))
+    return out
+
+
+def region_daily(keyword: str = "") -> dict:
+    """地区板块当日（东财 m:90+t:1；被风控时返回缺口标注 + 次日回填提示）。
+
+    当日地区板块无可用替代源（新浪无地域分类、同花顺滞后 1 日）→ 东财解封后自动纳入，
+    或次日用 ths_daily 补齐。
+    """
+    import requests
+    s = requests.Session(); s.trust_env = False
+    s.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"})
+    try:
+        r = s.get("https://push2.eastmoney.com/api/qt/clist/get",
+                  params={"pn": "1", "pz": "100", "po": "1", "np": "1",
+                          "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fltt": "2", "invt": "2",
+                          "fid": "f3", "fs": "m:90+t:1", "fields": "f12,f14,f3"}, timeout=8)
+        rows = [{"源": "东财地域", "板块": it.get("f14"), "涨跌%": it.get("f3")}
+                for it in (r.json().get("data", {}).get("diff") or [])
+                if not keyword or _match(str(it.get("f14")), _keywords(keyword))]
+        return {"rows": rows, "blocked": False, "note": "东财地域板块当日"}
+    except Exception:
+        return {"rows": [], "blocked": True,
+                "note": "东财 push2 被 IP 风控——地区当日数据缺口，解封后自动纳入或次日 ths_daily 回填"}
+
+
 def cross_check(keyword: str, sina_cache: list = None, sw_cls: list = None) -> dict:
     """板块多源交叉验证（可复用入口，供日报告生成器调用）。
 
