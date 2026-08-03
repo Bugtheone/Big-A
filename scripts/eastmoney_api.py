@@ -824,14 +824,17 @@ class EastMoneyAPI:
         fs = self._BOARD_FS[board_type]
         period_num = self._BOARD_PERIOD[period]
         page_size = min(top_n, 100)
-        secid = f"{fs}&p:{period_num}"
+        # 2026-08-03 修复：板块资金流周期由 fid 编码（今日 f62/5日 f164/10日 f174），
+        # 旧写法 `fs=m:90+t:2&p:1` 已返回 rc:102 失效
+        secid = fs
+        fid = {"今日": "f62", "5日": "f164", "10日": "f174"}.get(period, "f62")
         url = "https://push2.eastmoney.com/api/qt/clist/get"
 
         def _make_params(pn, pz):
             return {
                 "pn": str(pn), "pz": str(pz), "po": "1", "np": "1",
                 "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-                "fltt": "2", "invt": "2", "fid": "f62",
+                "fltt": "2", "invt": "2", "fid": fid,
                 "fs": secid,
                 "fields": "f12,f14,f2,f3,f20,f62,f66,f72,f78,f84,f128,f184,f174,f175",
                 "_": str(int(time.time() * 1000)),
@@ -1026,6 +1029,23 @@ def em_get(url: str, params: dict = None, headers: dict = None, timeout: int = 1
             # 非200: 切换代理重试
         except Exception:
             continue
+    # ── push2delay 主机回退（2026-08-03 实测：push2delay 绕开 push2 WAF 封锁，数据延迟约15分钟）──
+    for _orig, _delay in (("push2.eastmoney.com", "push2delay.eastmoney.com"),
+                          ("push2his.eastmoney.com", "push2hisdelay.eastmoney.com")):
+        if _orig in url:
+            delay_url = url.replace(_orig, _delay)
+            try:
+                _time.sleep(0.4)
+                if method.upper() == "POST":
+                    resp = _EM_GET_SESSION.post(delay_url, params=params, headers=h,
+                                                data=data, timeout=timeout, proxies=None)
+                else:
+                    resp = _EM_GET_SESSION.get(delay_url, params=params, headers=h,
+                                               timeout=timeout, proxies=None)
+                if resp.status_code == 200:
+                    return resp.json()
+            except Exception:
+                continue
     # 全部失败
     return {}
 
