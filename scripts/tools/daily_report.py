@@ -48,7 +48,7 @@ def main() -> int:
     from scripts.market_api import api
     from scripts.data_gate import gate
     from scripts.eastmoney_info import em_zt_pool
-    from scripts.tools.sector_cross_check import cross_check
+    from scripts.tools.sector_cross_check import cross_check, concept_daily, region_daily
     from scripts.tushare_api import get_pro
 
     # ============ ① 大盘 ============
@@ -91,12 +91,14 @@ def main() -> int:
             cross_col += f" (跨源差{cc['spread']:.2f}pt)"
         sector_rows.append({"name": s.get("name"), "pct": s.get("change_pct"),
                             "cross": cross_col, "others": "; ".join(others[:2])})
-    # 概念：涨停题材词频 + westock 概念排名
+    # 概念：涨停题材词频 + 当日概念涨幅（新浪）
     reason_cnt = Counter()
     for x in zp:
         for r in str(x.get("reason") or "").replace("+", "|").split("|"):
             if r.strip():
                 reason_cnt[r.strip()] += 1
+    cdaily = concept_daily()[:6]          # 当日概念涨幅 TOP6（新浪，解决 ths 滞后）
+    rd = region_daily()                   # 地区当日（东财探测/缺口标注）
     # 资金流（新浪全量）
     def _net(d):
         try:
@@ -142,13 +144,24 @@ def main() -> int:
     L.append("> 交叉源：新浪成分股平均/申万官方一级/东财（被风控时自动跳过）；跨源差 ≤1pt 属正常口径差异，"
              ">1pt 需复核成分定义")
     L.append("")
-    L.append("### 2.2 概念（涨停题材词频）")
+    L.append("### 2.2 概念（涨停题材词频 + 当日涨幅）")
     L.append("")
     if reason_cnt:
         top = ", ".join(f"{k} {v}" for k, v in reason_cnt.most_common(8))
         L.append(f"**概念活跃**（{len(zp)} 只涨停题材）：{top}")
+    if cdaily:
+        top_c = "；".join(f"{r['板块']}{_fmt_pct(r['涨跌%'])}" for r in cdaily)
+        L.append(f"**概念当日涨幅 TOP6**（新浪，补齐 ths 滞后）：{top_c}")
     L.append("")
-    L.append("### 2.3 板块资金流（新浪全量）")
+    L.append("### 2.3 地区板块（当日）")
+    L.append("")
+    if rd.get("blocked"):
+        L.append(f"- ⚠️ {rd.get('note')}")
+    else:
+        reg_top = "；".join(f"{r['板块']}{_fmt_pct(r['涨跌%'])}" for r in rd["rows"][:5])
+        L.append(f"- 地区涨幅 TOP5（东财）：{reg_top}")
+    L.append("")
+    L.append("### 2.4 板块资金流（新浪全量）")
     L.append("")
     L.append(f"- **行业净流入 {ind_in + ind_out:+.0f} 亿**（新资金 +{ind_in:.0f} 亿 / 离场 {ind_out:.0f} 亿）")
     L.append("")
