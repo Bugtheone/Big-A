@@ -45,13 +45,17 @@ _SYNONYMS = {
     "地产": ["地产", "房地产", "开发"],
     "通信": ["通信", "光模块"],
     "计算机": ["计算机", "软件", "信息"],
-    "家电": ["家电"],
+    "家电": ["家电", "家用电器"],
 }
 
 
 def _keywords(keyword: str) -> list:
-    """返回待匹配关键词集合（原始词 + 同义词）。"""
-    return [keyword] + _SYNONYMS.get(keyword, [])
+    """返回待匹配关键词集合：原始词 + 命中的同义词键组（如'轨交设备'命中'轨交'组）。"""
+    kws = [keyword]
+    for key, syns in _SYNONYMS.items():
+        if key in keyword:
+            kws += [key] + syns
+    return list(dict.fromkeys(kws))  # 去重保序
 
 
 def _match(name: str, kws: list) -> bool:
@@ -68,7 +72,7 @@ def _tencent(keyword: str) -> list:
     return out
 
 
-def _sina(keyword: str) -> list:
+def _sina(keyword: str, cache: list = None) -> list:
     import requests
     s = requests.Session(); s.trust_env = False
     s.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://finance.sina.com.cn/"})
@@ -77,8 +81,12 @@ def _sina(keyword: str) -> list:
     kws = _keywords(keyword)
     out, seen = [], set()
     try:
-        r = s.get(url, params={"page": 1, "num": 200, "sort": "netamount", "asc": 0, "fenlei": 2}, timeout=10)
-        for d in json.loads(r.text):
+        if cache is None:
+            r = s.get(url, params={"page": 1, "num": 200, "sort": "netamount", "asc": 0, "fenlei": 2}, timeout=10)
+            data = json.loads(r.text)
+        else:
+            data = cache
+        for d in data:
             nm = d.get("name") or ""
             if _match(nm, kws) and nm not in seen:  # 去重同名分类
                 seen.add(nm)
@@ -108,14 +116,15 @@ def _eastmoney(keyword: str) -> tuple:
         return [], True
 
 
-def _shenwan(keyword: str) -> list:
+def _shenwan(keyword: str, sw_cls: list = None) -> list:
     from scripts.tushare_api import get_pro
     pro = get_pro()
     kws = _keywords(keyword)
     out = []
     try:
-        cls = pro.index_classify(level="L1", src="SW2021").to_dict("records")
-        for it in cls:
+        if sw_cls is None:
+            sw_cls = pro.index_classify(level="L1", src="SW2021").to_dict("records")
+        for it in sw_cls:
             if _match(it.get("industry_name", ""), kws):
                 rdf = pro.index_daily(ts_code=it["index_code"], start_date="20260801", end_date="20260803")
                 rows = rdf.to_dict("records")
@@ -128,42 +137,58 @@ def _shenwan(keyword: str) -> list:
     return out
 
 
+def cross_check(keyword: str, sina_cache: list = None, sw_cls: list = None) -> dict:
+    """板块多源交叉验证（可复用入口，供日报告生成器调用）。
+
+    支持缓存参数避免重复拉取：sina_cache=新浪行业全量、sw_cls=申万一级分类表。
+    返回 {keyword, rows: [{源,板块,涨跌%}...], verdict, spread, blocked}
+    """
+    all_rows = _tencent(keyword)
+    all_rows += _sina(keyword, cache=sina_cache)
+    em_rows, em_blocked = _eastmoney(keyword)
+    all_rows += em_rows
+    all_rows += _shenwan(keyword, sw_cls=sw_cls)
+    vals = [r["涨跌%"] for r in all_rows if r["涨跌%"] is not None]
+    verdict, spread = "", None
+    if len(vals) >= 2:
+        pos = sum(1 for v in vals if v > 0)
+        neg = sum(1 for v in vals if v < 0)
+        if pos == len(vals):
+            verdict = "同向上涨"
+        elif neg == len(vals):
+            verdict = "同向下跌"
+        else:
+            verdict = "方向分歧(成分定义不同)"
+        spread = round(max(vals) - min(vals), 2)
+    elif vals:
+        verdict = "单源(注意单源风险)"
+    else:
+        verdict = "无可用源"
+    return {"keyword": keyword, "rows": all_rows, "verdict": verdict,
+            "spread": spread, "blocked": em_blocked}
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("用法: python scripts/tools/sector_cross_check.py <关键词>")
         return 1
     kw = sys.argv[1]
     print(f"=== 板块多源交叉验证: 「{kw}」 ({datetime.now():%m-%d %H:%M}) ===\n")
-
-    all_rows = _tencent(kw) + _sina(kw)
-    em_rows, em_blocked = _eastmoney(kw)
-    all_rows += em_rows
-    all_rows += _shenwan(kw)
-
-    if not all_rows:
+    res = cross_check(kw)
+    if not res["rows"]:
         print(f"  四源均未匹配「{kw}」——请换关键词（如'电力/医药/机械'）")
         return 1
-
-    for r in all_rows:
+    for r in res["rows"]:
         v = f"{r['涨跌%']:+.2f}%" if r["涨跌%"] is not None else "取数失败"
         print(f"  [{r['源']}] {r['板块']}: {v}")
-    if em_blocked:
+    if res["blocked"]:
         print("  [东财] 🔴 push2 被 IP 风控，自动跳过（解封后自动纳入）")
-
-    # 判定
-    vals = [r["涨跌%"] for r in all_rows if r["涨跌%"] is not None]
-    if len(vals) >= 2:
-        pos = sum(1 for v in vals if v > 0)
-        neg = sum(1 for v in vals if v < 0)
-        if pos == len(vals) or neg == len(vals):
-            print(f"\n  判定: {'✅ 全部源同向上涨' if pos == len(vals) else '✅ 全部源同向下跌'}（方向一致）")
-            spread = max(vals) - min(vals)
-            print(f"  数值跨度: {min(vals):+.2f}% ~ {max(vals):+.2f}%（跨源差 {spread:.2f}pt，"
-                  f"源于成分股/加权口径不同）")
-        else:
-            print("\n  判定: ⚠️ 跨源方向分歧——需检查成分股定义差异（同名板块成分不同）")
-    else:
-        print("\n  判定: 可用源不足（<2），无法交叉——注意单源风险")
+    print(f"\n  判定: {'✅' if res['verdict'].startswith('同向') else '⚠️'} {res['verdict']}")
+    if res["spread"] is not None:
+        lo = min(r["涨跌%"] for r in res["rows"] if r["涨跌%"] is not None)
+        hi = max(r["涨跌%"] for r in res["rows"] if r["涨跌%"] is not None)
+        print(f"  数值跨度: {lo:+.2f}% ~ {hi:+.2f}%（跨源差 {res['spread']:.2f}pt，"
+              f"源于成分股/加权口径不同）")
     return 0
 
 
