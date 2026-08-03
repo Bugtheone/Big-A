@@ -165,6 +165,35 @@ def concept_daily(keyword: str = "") -> list:
     return out
 
 
+def concept_daily_adata(keyword: str) -> list:
+    """概念当日（adata 同花顺源，第三交叉源）。
+
+    同花顺概念指数（885xxx）当日实时——解决 ths_daily 滞后；
+    通过 all_concept_code_ths() 找概念代码 + get_market_concept_current_ths() 取当日行情。
+    失败（东财风控/无匹配概念）返回空。
+    """
+    try:
+        import adata
+        codes = adata.stock.info.all_concept_code_ths().to_dict("records")
+        hit = None
+        for r in codes:
+            if _match(str(r.get("name", "")), _keywords(keyword)):
+                hit = r
+                break
+        if not hit:
+            return []
+        df = adata.stock.market.get_market_concept_current_ths(index_code=str(hit["index_code"]))
+        rows = df.to_dict("records")
+        if not rows:
+            return []
+        r = rows[0]
+        pct = r.get("change_pct")
+        return [{"源": "adata同花顺", "板块": str(hit["name"]),
+                 "涨跌%": round(float(pct), 2) if pct is not None else None}]
+    except Exception:
+        return []
+
+
 def region_daily(keyword: str = "") -> dict:
     """地区板块当日（东财 m:90+t:1；被风控时返回缺口标注 + 次日回填提示）。
 
