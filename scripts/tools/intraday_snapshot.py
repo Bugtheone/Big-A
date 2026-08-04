@@ -155,6 +155,14 @@ def main() -> int:
                           "sector_delta.py")], timeout=120, cwd=_PROJECT_ROOT)
         except Exception as e:
             print(f"[WARN] 板块变化对比失败: {e}")
+    # 策略信号核验（docs/当前策略.md 的 C/D/E 条件清单，15 分钟调度每轮必跑）
+    if "--no-delta" not in sys.argv:
+        try:
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(_PROJECT_ROOT, "scripts", "tools",
+                          "strategy_signal.py")], timeout=120, cwd=_PROJECT_ROOT)
+        except Exception as e:
+            print(f"[WARN] 策略信号核验失败: {e}")
     return 0
 
 
