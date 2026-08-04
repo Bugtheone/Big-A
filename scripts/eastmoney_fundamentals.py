@@ -17,43 +17,35 @@ _session.trust_env = False
 
 def margin_trading(code: str = None, start_date: str = None, end_date: str = None) -> list[dict]:
     """个股/全市场融资融券数据。
-    code: 6位代码，不传则返回全市场汇总。
-    start_date/end_date: YYYYMMDD。
+    code: 6位代码，不传则返回全市场汇总(最近一日)。
+    ⚠️ 2026-08 东财 datacenter 报表 RPTA_WEB_MTSS_MARGINTRADING 已失效（报表配置不存在），改用 Tushare margin 兜底。
     返回每行: {date, rzye(融资余额亿), rqye(融券余额亿), rzmr(融资买入亿), rqmc(融券卖出亿), ...}
     """
     if end_date is None:
         end_date = datetime.now().strftime("%Y%m%d")
     if start_date is None:
         start_date = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
-    secid = f"{'1' if (code or '').startswith('6') else '0'}.{code}" if code else ""
-    params = {
-        "sortColumns": "TRADE_DATE",
-        "sortTypes": "-1",
-        "pageSize": 500,
-        "pageNumber": 1,
-        "reportName": "RPTA_WEB_MTSS_MARGINTRADING",
-        "columns": "TRADE_DATE,FIN_BALANCE,MARGIN_BALANCE,FIN_PURCHASE,MARGIN_SELL_VOL,FIN_NET_CHG,MARGIN_NET_CHG,FIN_NET_BUY,CLOSE_PRICE",
-        "source": "WEB", "client": "WEB",
-        "filter": f'(TRADE_DATE>=\'{start_date}\')(TRADE_DATE<=\'{end_date}\')',
-    }
-    if code:
-        params["filter"] += f'(SECURITY_CODE=\"{code}\")'
     try:
-        r = em_get("https://datacenter-web.eastmoney.com/api/data/v1/get", params=params, timeout=15)
-        rows = (r.get("result") or {}).get("data") or []
+        from scripts.tushare_pro_data import ts_margin
+        if code:
+            ts_code = code + (".SH" if code.startswith(("6", "9")) else ".SZ")
+            df = ts_margin(ts_code=ts_code, start=start_date, end=end_date)
+        else:
+            df = ts_margin(trade_date=end_date)
+        rows = df.to_dict("records") if hasattr(df, "to_dict") else df
     except Exception as e:
-        print(f"[margin] 请求失败: {e}")
+        print(f"[margin] Tushare 失败: {e}")
         return []
     out = []
     for it in rows:
         out.append({
-            "date": it.get("TRADE_DATE", "")[:10],
-            "rzye": round(float(it.get("FIN_BALANCE", 0) or 0) / 1e8, 2),
-            "rqye": round(float(it.get("MARGIN_BALANCE", 0) or 0) / 1e8, 2),
-            "rzmr": round(float(it.get("FIN_PURCHASE", 0) or 0) / 1e8, 2),
-            "rqmc": round(float(it.get("MARGIN_SELL_VOL", 0) or 0) / 1e8, 2),
-            "rzch": round(float(it.get("FIN_NET_CHG", 0) or 0) / 1e8, 2),
-            "rqch": round(float(it.get("MARGIN_NET_CHG", 0) or 0) / 1e8, 2),
+            "date": it.get("trade_date", "")[:10],
+            "rzye": round(float(it.get("rzye", 0) or 0) / 1e8, 2),
+            "rqye": round(float(it.get("rqye", 0) or 0) / 1e8, 2),
+            "rzmr": round(float(it.get("rzmre", 0) or 0) / 1e8, 2),
+            "rqmc": round(float(it.get("rqyl", 0) or 0) / 1e8, 2),
+            "rzch": round(float(it.get("rzche", 0) or 0) / 1e8, 2),
+            "rqch": round(float(it.get("rqche", 0) or 0) / 1e8, 2),
         })
     return out
 
@@ -77,7 +69,7 @@ def block_trade(code: str, start_date: str = None, end_date: str = None) -> list
                 "sortTypes": "-1",
                 "pageSize": 500,
                 "pageNumber": 1,
-                "reportName": "RPTA_BLOCKTRADE",
+                "reportName": "RPT_DATA_BLOCKTRADE",
                 "columns": "ALL",
                 "source": "WEB", "client": "WEB",
                 "filter": f'(TRADE_DATE>=\'{start_date}\')(TRADE_DATE<=\'{end_date}\')'
@@ -93,13 +85,13 @@ def block_trade(code: str, start_date: str = None, end_date: str = None) -> list
     out = []
     for it in rows:
         close = float(it.get("CLOSE_PRICE", 0) or 0)
-        price = float(it.get("TRADE_PRICE", 0) or 0)
+        price = float(it.get("DEAL_PRICE", 0) or 0)
         discount = round((price / close - 1) * 100, 2) if close else 0
         out.append({
             "date": it.get("TRADE_DATE", "")[:10],
             "price": price,
-            "volume": it.get("TRADE_VOLUME"),
-            "amount": it.get("TRADE_AMOUNT"),
+            "volume": it.get("DEAL_VOLUME"),
+            "amount": it.get("DEAL_AMT"),
             "buyer": it.get("BUYER_NAME", ""),
             "seller": it.get("SELLER_NAME", ""),
             "discount": discount,
@@ -122,7 +114,7 @@ def holder_num_change(code: str) -> list[dict]:
                 "sortTypes": "-1",
                 "pageSize": 50,
                 "pageNumber": 1,
-                "reportName": "RPT_F10_EQUITY_HOLDERNUMLATEST",
+                "reportName": "RPT_HOLDERNUMLATEST",
                 "columns": "SECURITY_CODE,END_DATE,HOLDER_NUM,AVG_HOLD_NUM,HOLDER_NUM_CHANGE,HOLDER_NUM_RATIO",
                 "source": "WEB", "client": "WEB",
                 "filter": f'(SECURITY_CODE="{code}")',
@@ -161,7 +153,7 @@ def dividend_history(code: str) -> list[dict]:
                 "sortTypes": "-1",
                 "pageSize": 50,
                 "pageNumber": 1,
-                "reportName": "RPT_F10_DIVIDEND_DETAIL",
+                "reportName": "RPT_SHAREBONUS_DET",
                 "columns": "ALL",
                 "source": "WEB", "client": "WEB",
                 "filter": f'(SECURITY_CODE="{code}")',
@@ -176,13 +168,13 @@ def dividend_history(code: str) -> list[dict]:
     out = []
     for it in rows:
         out.append({
-            "year": str(it.get("REPORT_DATE", ""))[:4],
-            "ex_date": it.get("EX_DIVIDEND_DATE", "")[:10],
-            "cash_div": it.get("CASH_DIVIDEND_RATIO"),
-            "bonus_share": it.get("BJGS"),
-            "rights_issue": it.get("ZJGS"),
-            "plan_date": it.get("PLAN_EXPLAIN_DATE", "")[:10],
-            "reg_date": it.get("REGISTRY_DATE", "")[:10],
+            "year": str(it.get("REPORT_DATE") or "")[:4],
+            "ex_date": (it.get("EX_DIVIDEND_DATE") or "")[:10],
+            "cash_div": it.get("PRETAX_BONUS_RMB"),
+            "bonus_share": it.get("BONUS_RATIO"),
+            "rights_issue": it.get("IT_RATIO"),
+            "plan_date": (it.get("PLAN_NOTICE_DATE") or "")[:10],
+            "reg_date": (it.get("EQUITY_RECORD_DATE") or "")[:10],
         })
     return out
 
