@@ -83,3 +83,6 @@ scripts/_archive/
 # ── 个人笔记/工具产物（scratch/） ──
 scratch/
 .aider.*
+
+# ── 板块变化对比状态（每15分钟变化，不跟踪） ──
+reports/daily/*/sector_state.json
