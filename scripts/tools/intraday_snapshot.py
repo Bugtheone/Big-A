@@ -99,6 +99,14 @@ def main() -> int:
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(text)
     print(f"\n[已写入] {os.path.relpath(out, _PROJECT_ROOT)}")
+    # 板块变化对比（对比上一快照，15 分钟调度每轮必跑）
+    if "--no-delta" not in sys.argv:
+        try:
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(_PROJECT_ROOT, "scripts", "tools",
+                          "sector_delta.py")], timeout=120, cwd=_PROJECT_ROOT)
+        except Exception as e:
+            print(f"[WARN] 板块变化对比失败: {e}")
     return 0
 
 
