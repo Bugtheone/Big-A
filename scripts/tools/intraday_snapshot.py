@@ -30,7 +30,8 @@ from scripts.eastmoney_info import em_zt_pool  # noqa: E402
 
 _WATCH_INDEX = ["上证指数", "深证成指", "创业板指", "科创50", "上证50", "沪深300", "中证500", "中证1000"]
 _DIVIDEND_LEAD = ["601088", "601398", "601939", "600519", "601857", "600900"]
-_ROBOT_CHAIN = ["603728", "002896", "300024", "688017", "002472", "603728"]
+_ROBOT_CHAIN = ["603728", "002896", "300024", "688017", "002472"]
+_OBS_POOL = ["300088", "300454", "688222"]  # 观察池（docs/观察池.md：长信科技/深信服/成都先导）
 
 
 def snapshot() -> dict:
@@ -42,6 +43,7 @@ def snapshot() -> dict:
     hr = api.hot_reason() or []
     dq = api.stock_realtime(_DIVIDEND_LEAD)
     rq = api.stock_realtime(_ROBOT_CHAIN)
+    op = api.stock_realtime(_OBS_POOL)
     return {
         "time": now.strftime("%Y-%m-%d %H:%M:%S"),
         "indices": {n: {"price": snap.get(n, {}).get("price"),
@@ -53,6 +55,7 @@ def snapshot() -> dict:
         "hot_top": [(x.get("name"), str(x.get("reason"))[:26]) for x in hr[:5]],
         "dividend_lead": {it.get("name"): (it.get("price"), it.get("change_pct")) for it in dq.values()},
         "robot_chain": {it.get("name"): (it.get("price"), it.get("change_pct")) for it in rq.values()},
+        "obs_pool": {it.get("name"): (it.get("price"), it.get("change_pct")) for it in op.values()},
     }
 
 
