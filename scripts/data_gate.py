@@ -692,9 +692,9 @@ class DataGate:
         return baidu_kline_with_ma(code, start_time)
 
     # ========== 东财研报 + PDF（§2.1）==========
-    def em_eastmoney_reports(self, code: str, max_pages: int = 5) -> list:
+    def em_eastmoney_reports(self, code: str, max_pages: int = 5, limit: int = None) -> list:
         from scripts.eastmoney_api import eastmoney_reports
-        return eastmoney_reports(code, max_pages)
+        return eastmoney_reports(code, max_pages, limit)
 
     def em_download_pdf(self, record: dict, target_dir: str = None) -> str:
         from scripts.eastmoney_api import download_pdf

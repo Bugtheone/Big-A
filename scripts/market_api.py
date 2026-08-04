@@ -854,6 +854,10 @@ class MarketAPI:
                 tc = "sh" + c2
             elif c2.startswith("0") or c2.startswith("3"):
                 tc = "sz" + c2
+            elif c2.startswith("5"):
+                tc = "sh" + c2  # 沪市 ETF/LOF（51x/50x）
+            elif c2.startswith("1"):
+                tc = "sz" + c2  # 深市基金（15x/16x）
             else:
                 tc = c2
             tc_codes.append(tc)
@@ -1500,9 +1504,9 @@ class MarketAPI:
     #  十五、东财研报 + PDF下载（§2.1）
     # ================================================================
 
-    def eastmoney_reports(self, code: str, max_pages: int = 5) -> List[Dict]:
-        """获取指定股票的研报列表"""
-        return gate.em_eastmoney_reports(code, max_pages)
+    def eastmoney_reports(self, code: str, max_pages: int = 5, limit: int = None) -> List[Dict]:
+        """获取指定股票的研报列表（limit 为 README 兼容别名）"""
+        return gate.em_eastmoney_reports(code, max_pages, limit)
 
     def download_pdf(self, record: dict, target_dir: str = None) -> str:
         """下载单份研报PDF"""

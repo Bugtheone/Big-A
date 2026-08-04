@@ -1112,9 +1112,13 @@ REPORT_API = "https://reportapi.eastmoney.com/report/list"
 PDF_TPL = "https://pdf.dfcfw.com/pdf/H3_{info_code}_1.pdf"
 
 
-def eastmoney_reports(code: str, max_pages: int = 5) -> list:
-    """拉取指定股票的研报列表"""
+def eastmoney_reports(code: str, max_pages: int = 5, limit: int = None) -> list:
+    """拉取指定股票的研报列表
+    limit: 兼容 README 调用习惯（limit=N → max_pages 近似换算，pageSize=100）
+    """
     all_records = []
+    if limit is not None:
+        max_pages = max(1, -(-limit // 100))  # limit 条 → 每页100向上取整页数
     for page in range(1, max_pages + 1):
         params = {
             "industryCode": "*", "pageSize": "100", "industry": "*",
