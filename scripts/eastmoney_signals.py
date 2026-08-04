@@ -67,11 +67,11 @@ def dragon_tiger_board(date: str = None) -> list[dict]:
         r = em_get(
             "https://datacenter-web.eastmoney.com/api/data/v1/get",
             params={
-                "sortColumns": "NET_BUY_AMT",
-                "sortTypes": "-1",
+                "sortColumns": "SECURITY_CODE",
+                "sortTypes": "1",
                 "pageSize": 200,
                 "pageNumber": 1,
-                "reportName": "RPT_DAILYBILLBOARD_DAILY",
+                "reportName": "RPT_DAILYBILLBOARD_DETAILSNEW",
                 "columns": "ALL",
                 "source": "WEB", "client": "WEB",
                 "filter": f'(TRADE_DATE=\'{date}\')',
@@ -121,14 +121,14 @@ def lockup_expiry(days: int = 7) -> list[dict]:
         r = em_get(
             "https://datacenter-web.eastmoney.com/api/data/v1/get",
             params={
-                "sortColumns": "UNLOCK_DATE",
+                "sortColumns": "FREE_DATE",
                 "sortTypes": "1",
                 "pageSize": 500,
                 "pageNumber": 1,
-                "reportName": "RPT_LIFT_STATISTICS",
+                "reportName": "RPT_LIFT_STAGE",
                 "columns": "ALL",
                 "source": "WEB", "client": "WEB",
-                "filter": f'(UNLOCK_DATE>=\'{start}\')(UNLOCK_DATE<=\'{end}\')',
+                "filter": f'(FREE_DATE>=\'{start}\')(FREE_DATE<=\'{end}\')',
             },
             headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"},
             timeout=15,
@@ -139,17 +139,23 @@ def lockup_expiry(days: int = 7) -> list[dict]:
         return []
     out = []
     for it in rows:
-        unlock_dt = it.get("UNLOCK_DATE", "")[:10]
+        unlock_dt = str(it.get("FREE_DATE", ""))[:10]
         days_left = 0
         if unlock_dt:
             days_left = (datetime.strptime(unlock_dt, "%Y-%m-%d") - datetime.now()).days
+        # RPT_LIFT_STAGE: CURRENT_FREE_SHARES(万股) / LIFT_MARKET_CAP(万元)
+        cap_yi = None
+        try:
+            cap_yi = round(float(it.get("LIFT_MARKET_CAP", 0) or 0) / 1e4, 2)
+        except (TypeError, ValueError):
+            cap_yi = None
         out.append({
             "code": it.get("SECURITY_CODE"),
             "name": it.get("SECURITY_NAME_ABBR"),
             "unlock_date": unlock_dt,
-            "unlock_shares": it.get("UNLOCK_SHARES"),
-            "unlock_ratio": it.get("UNLOCK_RATIO"),
-            "float_mcap": round(float(it.get("UNLOCK_SHARES", 0) or 0) * float(it.get("CLOSE_PRICE", 0) or 0) / 1e8, 2),
+            "unlock_shares": it.get("CURRENT_FREE_SHARES"),
+            "unlock_ratio": None,
+            "float_mcap": cap_yi,
             "days_left": days_left,
         })
     return out
