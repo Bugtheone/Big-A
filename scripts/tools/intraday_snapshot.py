@@ -34,6 +34,47 @@ _ROBOT_CHAIN = ["603728", "002896", "300024", "688017", "002472"]
 _OBS_POOL = ["300088", "300454", "688222"]  # 观察池（docs/观察池.md：长信科技/深信服/成都先导）
 
 
+def in_trading_hours(dt: datetime) -> bool:
+    """交易时段门控（以本机真实北京时间为准，防调度后端时钟漂移导致的乱触发）。
+
+    周一到周五：9:30–11:30 与 13:00–15:00（含边界）；午休 11:30–13:00 不算。
+    节假日以行情为准（脚本无法内置放假表，若休假当天数据为空属正常）。
+    """
+    if dt.weekday() >= 5:  # 周六周日
+        return False
+    hm = dt.hour * 60 + dt.minute
+    am = 9 * 60 + 30 <= hm <= 11 * 60 + 30
+    pm = 13 * 60 <= hm <= 15 * 60
+    return am or pm
+
+
+def _selfcheck_gate() -> int:
+    """门控逻辑自测（--check-gate）：断言关键边界时间点。"""
+    from datetime import datetime as _dt
+    cases = [
+        ("2026-08-03 09:29", False),  # 周一开盘前 1 分钟
+        ("2026-08-03 09:30", True),   # 开盘
+        ("2026-08-03 11:30", True),   # 上午收盘（含边界）
+        ("2026-08-03 11:31", False),  # 午休
+        ("2026-08-03 12:59", False),  # 午休
+        ("2026-08-03 13:00", True),   # 下午开盘
+        ("2026-08-03 14:59", True),   # 收盘前
+        ("2026-08-03 15:00", True),   # 收盘（含边界）
+        ("2026-08-03 15:01", False),  # 收盘后
+        ("2026-08-02 10:00", False),  # 周日
+        ("2026-08-01 10:00", False),  # 周六
+    ]
+    ok = True
+    for ts, want in cases:
+        got = in_trading_hours(_dt.strptime(ts, "%Y-%m-%d %H:%M"))
+        mark = "✅" if got == want else "❌"
+        if got != want:
+            ok = False
+        print(f"  {mark} {ts} → {got}（期望 {want}）")
+    print(f"\n门控自测: {'全部通过' if ok else '存在失败项'}")
+    return 0 if ok else 1
+
+
 def snapshot() -> dict:
     now = datetime.now()
     snap = {s["name"]: s for s in (api.index_snapshot() or [])}
@@ -85,6 +126,13 @@ def render(d: dict) -> str:
 
 
 def main() -> int:
+    if "--check-gate" in sys.argv:
+        return _selfcheck_gate()
+    now = datetime.now()
+    if not in_trading_hours(now) and "--force" not in sys.argv:
+        print(f"[SKIP] {now:%Y-%m-%d %H:%M:%S} 非交易时段（9:30-11:30/13:00-15:00），"
+              f"不生成盘中快照。需强制生成请加 --force")
+        return 0
     d = snapshot()
     if "--json" in sys.argv:
         print(json.dumps(d, ensure_ascii=False))
