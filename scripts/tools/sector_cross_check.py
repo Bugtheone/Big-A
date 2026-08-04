@@ -194,6 +194,30 @@ def concept_daily_adata(keyword: str) -> list:
         return []
 
 
+def region_active(date: str = "") -> list:
+    """当日地域活跃度代理（涨停股地域归因，adata 归属聚合）。
+
+    地区当日无稳定涨幅源（东财 push2 间歇）时的替代信号：
+    统计当日涨停股按注册地域分布，反映"当日哪些地域活跃"。
+    返回 [{源:'涨停地域归因', 板块: 地域名, 涨跌%: 涨停家数}...]（按家数降序）
+    """
+    from collections import Counter
+    from scripts.eastmoney_info import em_zt_pool
+    import adata
+    zp = em_zt_pool(date or "") or []
+    regions = Counter()
+    for x in zp:
+        try:
+            df = adata.stock.info.get_plate_east(stock_code=str(x.get("code")))
+            for _, r in df.iterrows():
+                if "板块" in str(r.get("plate_type", "")) and "板块" in str(r.get("plate_name", "")):
+                    regions[str(r.get("plate_name", "")).replace("板块", "")] += 1
+                    break
+        except Exception:
+            continue
+    return [{"源": "涨停地域归因", "板块": k, "涨跌%": v} for k, v in regions.most_common()]
+
+
 def region_daily(keyword: str = "") -> dict:
     """地区板块当日（东财 m:90+t:1）。
 
@@ -218,10 +242,11 @@ def region_daily(keyword: str = "") -> dict:
                         "note": f"东财地域板块当日（{host} 通道）"}
         except Exception:
             continue
-    # 全 0 或不可达 → 间歇缺口
-    return {"rows": [], "blocked": True,
-            "note": "东财地域板块间歇缺口：push2delay 不支持地域板块（返回 0），"
-                    "push2 直连间歇可达——可用时自动纳入，否则次日 ths_daily 回填"}
+    # 全 0 或不可达 → 用涨停地域归因作当日活跃度代理（可回填涨幅）
+    proxy = region_active() if not keyword else []
+    return {"rows": proxy, "blocked": True,
+            "note": "东财地域板块间歇缺口（push2delay 不支持地域/返回 0）→ 当日以涨停地域归因代理"
+                    "活跃度，次日 ths_daily 回填真实涨幅"}
 
 
 def cross_check(keyword: str, sina_cache: list = None, sw_cls: list = None) -> dict:
