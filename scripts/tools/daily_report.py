@@ -37,7 +37,7 @@ def main() -> int:
     mode = "auto"
     for i, a in enumerate(args):
         if a == "--date" and i + 1 < len(args):
-            date_s = args[i + 1]
+            date_s = args[i + 1].replace("-", "")  # 兼容 YYYY-MM-DD / YYYYMMDD
         elif a == "--mode" and i + 1 < len(args):
             mode = args[i + 1]
 
