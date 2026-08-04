@@ -195,26 +195,33 @@ def concept_daily_adata(keyword: str) -> list:
 
 
 def region_daily(keyword: str = "") -> dict:
-    """地区板块当日（东财 m:90+t:1；被风控时返回缺口标注 + 次日回填提示）。
+    """地区板块当日（东财 m:90+t:1）。
 
-    当日地区板块无可用替代源（新浪无地域分类、同花顺滞后 1 日）→ 东财解封后自动纳入，
-    或次日用 ths_daily 补齐。
+    2026-08-04 实测：push2delay 不提供地域板块（m:90+t:1 返回全 0 假数据）；
+    push2 直连间歇可达（曾 23:00 成功，08-04 盘前又不可达）。
+    返回 {rows, blocked, note}——全 0 判为不支持，如实标注间歇缺口。
     """
     import requests
     s = requests.Session(); s.trust_env = False
     s.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"})
-    try:
-        r = s.get("https://push2.eastmoney.com/api/qt/clist/get",
-                  params={"pn": "1", "pz": "100", "po": "1", "np": "1",
-                          "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fltt": "2", "invt": "2",
-                          "fid": "f3", "fs": "m:90+t:1", "fields": "f12,f14,f3"}, timeout=8)
-        rows = [{"源": "东财地域", "板块": it.get("f14"), "涨跌%": it.get("f3")}
-                for it in (r.json().get("data", {}).get("diff") or [])
-                if not keyword or _match(str(it.get("f14")), _keywords(keyword))]
-        return {"rows": rows, "blocked": False, "note": "东财地域板块当日"}
-    except Exception:
-        return {"rows": [], "blocked": True,
-                "note": "东财 push2 被 IP 风控——地区当日数据缺口，解封后自动纳入或次日 ths_daily 回填"}
+    params = {"pn": "1", "pz": "100", "po": "1", "np": "1",
+              "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fltt": "2", "invt": "2",
+              "fid": "f3", "fs": "m:90+t:1", "fields": "f12,f14,f3"}
+    for host in ("push2.eastmoney.com", "push2delay.eastmoney.com"):
+        try:
+            r = s.get(f"https://{host}/api/qt/clist/get", params=params, timeout=8)
+            rows = [{"源": "东财地域", "板块": it.get("f14"), "涨跌%": it.get("f3")}
+                    for it in (r.json().get("data", {}).get("diff") or [])
+                    if not keyword or _match(str(it.get("f14")), _keywords(keyword))]
+            if rows and any(rr["涨跌%"] not in (None, 0, "0") for rr in rows):
+                return {"rows": rows, "blocked": False,
+                        "note": f"东财地域板块当日（{host} 通道）"}
+        except Exception:
+            continue
+    # 全 0 或不可达 → 间歇缺口
+    return {"rows": [], "blocked": True,
+            "note": "东财地域板块间歇缺口：push2delay 不支持地域板块（返回 0），"
+                    "push2 直连间歇可达——可用时自动纳入，否则次日 ths_daily 回填"}
 
 
 def cross_check(keyword: str, sina_cache: list = None, sw_cls: list = None) -> dict:
