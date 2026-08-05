@@ -137,20 +137,53 @@ def main():
     e3_pass = (sh_price is not None and ma5 is not None and sh_price < ma5)
     signals["E3"] = _judge("E3 上证破5日线", e3_pass, f"上证 {sh_price} vs MA5 {ma5}")
 
-    # ── 综合判定（分级：E1/E3 清仓级 > D2 减仓级 > E2 情绪级 > C 升级） ──
+    # ── F 级信号：外盘/资金面（新拓展） ────────────────────
+    f1, f2 = None, None
+    try:
+        from scripts.tools.intraday_enhance import a50_check, money_rate
+        import requests as _rq
+        _S = _rq.Session(); _S.trust_env = False
+        _S.headers.update({"User-Agent": "Mozilla/5.0"})
+        a50 = a50_check(_S)
+        if a50:
+            f1 = a50["chg"]
+            signals["F1"] = _judge("F1 A50偏空(<-0.5%)", a50["chg"] < -0.5,
+                                   f"A50 {a50['chg']:+.2f}%（{a50['price']}）")
+        m = money_rate(_S)
+        gc = (m.get("GC001") or {}).get("rate")
+        if gc:
+            f2 = gc
+            signals["F2"] = _judge("F2 资金面紧张(GC001>4%)", gc > 4,
+                                   f"GC001 {gc}%")
+    except Exception:
+        pass
+
+    # ── 综合判定（分级：E1/E3 清仓级 > D2/F1 减仓级 > F2/E2 预警级 > C 升级） ──
     c_pass = sum(1 for k in ("C1", "C2", "C3", "C4") if signals[k]["pass"])
     e_hard = sum(1 for k in ("E1", "E3") if signals[k]["pass"])
     e2 = signals["E2"]["pass"]
     d2 = signals["D2"]["pass"]
+    f1_pass = bool(f1 is not None and f1 < -0.5)
+    f2_pass = bool(f2 is not None and f2 > 4)
     if e_hard >= 1:
         action = "🔴 撤退/清仓"
         detail = f"硬性撤退信号 E1/E3 ×{e_hard}"
-    elif d2:
-        action = "🟠 中军杀跌·减仓预警"
-        detail = "D2 中军杀跌（旭创/新易盛领跌），主线减仓"
-    elif e2:
-        action = "🟡 情绪不足·涨停断层"
-        detail = f"E2 涨停 {zt_cnt}<60，情绪降温，观察"
+    elif d2 or f1_pass:
+        action = "🟠 减仓预警"
+        causes = []
+        if d2:
+            causes.append("D2 中军杀跌")
+        if f1_pass:
+            causes.append(f"F1 A50偏空({f1:+.2f}%)")
+        detail = " + ".join(causes)
+    elif f2_pass or e2:
+        action = "🟡 预警·观察"
+        causes = []
+        if f2_pass:
+            causes.append(f"F2 资金紧张(GC001 {f2}%)")
+        if e2:
+            causes.append(f"E2 涨停断层({zt_cnt})")
+        detail = " + ".join(causes)
     elif c_pass >= 3:
         action = "🟢 升级信号·可上调仓位(20~40%)"
         detail = f"C 信号 {c_pass}/4"
@@ -167,6 +200,7 @@ def main():
         "主线": {"算力涨停": ai_cnt, "CPO": cpo, "中军": zj_pct, "中军均值": zj_avg},
         "信号": signals,
         "综合": {"C通过": c_pass, "E硬撤退": e_hard, "E2情绪": e2, "D2中军": d2,
+                 "F1_A50偏空": f1_pass, "F2资金紧": f2_pass,
                  "动作": action, "说明": detail},
     })
 
@@ -254,9 +288,11 @@ def main():
         lines.extend(f"- {c}" for c in changes)
     lines.append("")
     lines.append("## 信号判定")
-    for k in ("C1", "C2", "C3", "C4", "D1", "D2", "E1", "E2", "E3"):
-        s = signals[k]
-        mark = "✅" if s["pass"] else ("⚠️" if k.startswith(("D", "E")) else "—")
+    for k in ("C1", "C2", "C3", "C4", "D1", "D2", "E1", "E2", "E3", "F1", "F2"):
+        s = signals.get(k)
+        if not s:
+            continue
+        mark = "✅" if s["pass"] else ("⚠️" if k.startswith(("D", "E", "F")) else "—")
         lines.append(f"- {mark} {s['signal']}: {s['detail']}")
     # 回踩买点确认输出
     if buy_conf:
