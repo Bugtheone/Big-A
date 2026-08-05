@@ -103,6 +103,39 @@ def hot_top():
         return []
 
 
+def a50_check(S):
+    """富时A50期货（新浪）：返回 {price, prev_close, chg}——A股隔夜/盘前方向预判。"""
+    try:
+        r = S.get("https://hq.sinajs.cn/list=hf_CHA50CFD", timeout=6,
+                  headers={"Referer": "https://finance.sina.com.cn/"})
+        r.encoding = "gbk"
+        f = r.text.split('"')[1].split(",")
+        if len(f) > 6 and float(f[5]):
+            price = float(f[0])
+            prev = float(f[5])
+            return {"price": price, "prev_close": prev,
+                    "chg": round((price - prev) / prev * 100, 2)}
+    except Exception:
+        pass
+    return None
+
+
+def money_rate(S):
+    """资金面：国债逆回购利率（GC001 沪 / R-001 深），高利率=资金紧张。"""
+    out = {}
+    mapping = {"sh204001": "GC001", "sz131810": "R-001"}
+    for code, nm in mapping.items():
+        try:
+            r = S.get(f"https://qt.gtimg.cn/q={code}", timeout=6)
+            r.encoding = "gbk"
+            f = r.text.split('"')[1].split("~")
+            if len(f) > 3 and f[3]:
+                out[nm] = {"rate": float(f[3])}
+        except Exception:
+            continue
+    return out
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -163,6 +196,19 @@ def main():
                 emit("  " + ", ".join(f"{x.get('name')}({x.get('code')})" for x in hot))
         except Exception as e:
             emit(f"  失败: {e}")
+
+        emit("\n[⑤ 富时A50·盘前预判]")
+        a50 = a50_check(S)
+        if a50:
+            st = "偏多🟢" if a50["chg"] > 0.5 else ("偏空🔴" if a50["chg"] < -0.5 else "中性")
+            emit(f"  富时A50: {a50['price']} {a50['chg']:+.2f}%（昨结{a50['prev_close']}）{st}")
+
+        emit("\n[⑥ 资金面·国债逆回购]")
+        m = money_rate(S)
+        if m:
+            gc = m.get("GC001", {}).get("rate")
+            r_ = m.get("R-001", {}).get("rate")
+            emit(f"  GC001 {gc}% · R-001 {r_}%" + (" ⚠️利率偏高(资金紧)" if gc and gc > 4 else ""))
 
     # 写文件（供快照/对话读取）
     dstr = now.strftime("%Y-%m-%d")
