@@ -56,6 +56,8 @@ def main() -> int:
         _log("--dry-run 模式：跳过飞书推送")
     else:
         steps.append(("飞书日报推送", "scripts/tools/daily_feishu_report.py"))
+    # 盘后复核更新：每次复盘执行时重新拉取 Tushare 官方数据，更新收盘总结（2026-08-05）
+    steps.append(("盘后复核更新", "scripts/tools/post_close_update.py"))
 
     fails = 0
     for name, script in steps:
