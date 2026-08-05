@@ -1355,6 +1355,9 @@ class MarketAPI:
                     # 顺带保留年度股息率等特殊字段
                     elif "股息率" in str(k):
                         item["dividend_yield"] = v
+                    # 一致预期/盈利预测字段（预期差 P1：券商预测 EPS/净利润）
+                    elif any(x in str(k) for x in ("预测", "一致预期", "机构预测", "预期净利润", "预测EPS", "盈利预测")):
+                        item.setdefault("consensus", {})[k] = v
                 simplified.append(item)
             result["data"] = simplified
             result["message"] = f"问财命中 {resp.get('code_count', 0)} 条，已返回 {len(simplified)} 条"
