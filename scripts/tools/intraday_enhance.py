@@ -116,49 +116,62 @@ def main():
     S.headers.update({"User-Agent": "Mozilla/5.0"})
     now = datetime.now()
     _out(f"=== 盘中增强 {now:%H:%M:%S} ===")
+    lines = []  # 收集输出供写文件
+
+    def emit(t=""):
+        _out(t)
+        lines.append(t)
 
     if args.code:
         c = args.code
         nm = next((n for cc, n in _WATCH if cc == c), c)
-        _out(f"\n[个股 {nm}({c})]")
+        emit(f"\n[个股 {nm}({c})]")
         m = minute_check(S, c)
         s = seal_strength(S, c)
         if m:
-            _out(f"  分时: 价{m['price']} 量比{m['vol_ratio']}（<0.8=缩量企稳, >1.2=放量）")
+            emit(f"  分时: 价{m['price']} 量比{m['vol_ratio']}（<0.8=缩量企稳, >1.2=放量）")
         if s:
-            _out(f"  盘口: 价{s['price']} {s['chg']:+.2f}% 买一封单{s['buy1_vol']}手")
-        return 0
+            emit(f"  盘口: 价{s['price']} {s['chg']:+.2f}% 买一封单{s['buy1_vol']}手")
+    else:
+        emit("\n[① 分时确认·回踩买点]")
+        for c, n in _WATCH:
+            m = minute_check(S, c)
+            if m:
+                st = "缩量企稳✅" if m["vol_ratio"] < 0.8 else ("放量⚠️" if m["vol_ratio"] > 1.2 else "平稳")
+                emit(f"  {n}: 价{m['price']} 量比{m['vol_ratio']} {st}")
 
-    _out("\n[① 分时确认·回踩买点]")
-    for c, n in _WATCH:
-        m = minute_check(S, c)
-        if m:
-            st = "缩量企稳✅" if m["vol_ratio"] < 0.8 else ("放量⚠️" if m["vol_ratio"] > 1.2 else "平稳")
-            _out(f"  {n}: 价{m['price']} 量比{m['vol_ratio']} {st}")
+        emit("\n[② 港美股 AI 映射]")
+        g = global_ai(S)
+        for nm, d in g.items():
+            if nm == "_ai4_avg":
+                emit(f"  → 美股AI四巨头均值 {d:+.2f}%（映射A股半导体链方向）")
+            else:
+                emit(f"  {nm}: {d['price']} {d['chg']:+.2f}%")
 
-    _out("\n[② 港美股 AI 映射]")
-    g = global_ai(S)
-    for nm, d in g.items():
-        if nm == "_ai4_avg":
-            _out(f"  → 美股AI四巨头均值 {d:+.2f}%（映射A股半导体链方向）")
-        else:
-            _out(f"  {nm}: {d['price']} {d['chg']:+.2f}%")
+        emit("\n[③ 盘口封单·连板监控]")
+        for c, n in _WATCH:
+            s = seal_strength(S, c)
+            if s and s["chg"] >= 9.9:
+                emit(f"  {n}: 涨停 {s['price']} 封单 {s['buy1_vol']}手" + ("（巨单封死）" if s["buy1_vol"] > 50000 else ""))
+            elif s:
+                emit(f"  {n}: {s['chg']:+.2f}% 买一 {s['buy1_vol']}手")
 
-    _out("\n[③ 盘口封单·连板监控]")
-    for c, n in _WATCH:
-        s = seal_strength(S, c)
-        if s and s["chg"] >= 9.9:
-            _out(f"  {n}: 涨停 {s['price']} 封单 {s['buy1_vol']}手" + ("（巨单封死）" if s["buy1_vol"] > 50000 else ""))
-        elif s:
-            _out(f"  {n}: {s['chg']:+.2f}% 买一 {s['buy1_vol']}手")
+        emit("\n[④ 人气榜·舆情热股]")
+        try:
+            hot = hot_top()
+            if hot:
+                emit("  " + ", ".join(f"{x.get('name')}({x.get('code')})" for x in hot))
+        except Exception as e:
+            emit(f"  失败: {e}")
 
-    _out("\n[④ 人气榜·舆情热股]")
-    try:
-        hot = hot_top()
-        if hot:
-            _out("  " + ", ".join(f"{x.get('name')}({x.get('code')})" for x in hot))
-    except Exception as e:
-        _out(f"  失败: {e}")
+    # 写文件（供快照/对话读取）
+    dstr = now.strftime("%Y-%m-%d")
+    outdir = os.path.join(_PROJECT_ROOT, "reports", "daily", dstr)
+    os.makedirs(outdir, exist_ok=True)
+    out_path = os.path.join(outdir, f"intraday_enhance_{now.strftime('%H%M')}.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(f"# 盘中增强 — {now.strftime('%Y-%m-%d %H:%M')}\n\n" + "\n".join(lines) + "\n")
+    emit(f"\n[已写入] {os.path.relpath(out_path, _PROJECT_ROOT)}")
     return 0
 
 

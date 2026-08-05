@@ -163,6 +163,14 @@ def main() -> int:
                           "strategy_signal.py")], timeout=120, cwd=_PROJECT_ROOT)
         except Exception as e:
             print(f"[WARN] 策略信号核验失败: {e}")
+    # 盘中增强（分时确认/港美股映射/盘口封单/人气榜，供 AI 对话自动读取）
+    if "--no-delta" not in sys.argv:
+        try:
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(_PROJECT_ROOT, "scripts", "tools",
+                          "intraday_enhance.py")], timeout=120, cwd=_PROJECT_ROOT)
+        except Exception as e:
+            print(f"[WARN] 盘中增强失败: {e}")
     return 0
 
 
