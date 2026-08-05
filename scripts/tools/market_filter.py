@@ -14,6 +14,14 @@
 """
 import sys, os, argparse, json
 from datetime import datetime
+
+def _rt():
+    """真实时间（腾讯 CDN 权威，禁止沿用旧时间戳）。"""
+    try:
+        from scripts.tools.real_time import get_real_time
+        return datetime.strptime(get_real_time()["used"], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return _rt()
 from collections import Counter
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -87,7 +95,7 @@ def main():
     import requests
     S = requests.Session(); S.trust_env = False
     S.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"})
-    now = datetime.now()
+    now = _rt()
 
     # ① 成交额 TOP N
     top = fetch_top(S, args.top)
@@ -113,6 +121,27 @@ def main():
             passed.append({**s, "ma5": round(ma5, 2), "ma10": round(ma10, 2),
                            "above_ma5": True, "above_ma10": True})
 
+    # ④ 业绩因子（预期差 P0）：近30日业绩预告标记（预增/扭亏 = 💹）
+    earn_map = {}
+    try:
+        from scripts.tools.earnings_forecast import fetch_forecasts, classify
+        from datetime import timedelta as _td
+        erows = fetch_forecasts(
+            start_date=(now - _td(days=30)).strftime("%Y%m%d"),
+            end_date=now.strftime("%Y%m%d"))
+        for r in erows:
+            c = str(r.get("ts_code", "")).split(".")[0]
+            if c not in earn_map or (classify(r) == "正向" and classify(earn_map[c]) != "正向"):
+                earn_map[c] = r
+    except Exception as e:
+        print(f"[WARN] 业绩因子失败: {e}")
+    for s in passed:
+        e = earn_map.get(s["code"])
+        if e:
+            s["earn"] = f"{e.get('type')} {e.get('p_change_min')}~{e.get('p_change_max')}%"
+        else:
+            s["earn"] = ""
+
     # ── 输出 ──────────────────────────────────────────────
     # 行业聚类（锁定主线）
     ind_cnt = Counter(s["ind"] for s in passed)
@@ -137,7 +166,8 @@ def main():
     _out(f"\n[候选明细 TOP20]")
     passed.sort(key=lambda s: -(s["chg5d"] or 0))
     for s in passed[:20]:
-        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}]")
+        earn = f"💹{s['earn']}" if s["earn"] else ""
+        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}] {earn}")
 
     # 写文件
     dstr = now.strftime("%Y-%m-%d")
