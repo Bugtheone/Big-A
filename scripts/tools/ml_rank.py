@@ -79,6 +79,32 @@ def build_pool_features(S, codes, days=260):
     return np.array(X), np.array(y), meta
 
 
+def predict_rank(S, codes, days=260):
+    """对候选池预测次日涨幅并排序（供 market_filter --ml 复用）。
+    返回 {code: pred} 或 None（样本不足）。"""
+    X, y, meta = build_pool_features(S, codes, days)
+    if len(X) < 200:
+        return None
+    import numpy as np
+    import lightgbm as lgb
+    meta_codes = np.array([c for c, _ in meta])
+    uniq = sorted(set(meta_codes.tolist()))
+    n_train_codes = max(2, int(len(uniq) * 0.8))
+    train_codes = set(uniq[:n_train_codes])
+    train_mask = np.array([c in train_codes for c in meta_codes])
+    if train_mask.sum() < 200 or (~train_mask).sum() < 50:
+        return None
+    model = lgb.LGBMRegressor(n_estimators=200, learning_rate=0.05, num_leaves=31,
+                              random_state=42, verbose=-1)
+    model.fit(X[train_mask], y[train_mask])
+    pred = {}
+    for code in codes:
+        idx = [i for i, (c, _) in enumerate(meta) if c == code]
+        if idx:
+            pred[code] = round(float(model.predict(X[idx[-1]:idx[-1] + 1])[0]), 2)
+    return pred
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

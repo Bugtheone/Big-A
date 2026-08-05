@@ -90,6 +90,7 @@ def main():
     ap.add_argument("--min-chg", type=float, default=10.0, help="近5日最小涨幅%（默认 10）")
     ap.add_argument("--max-chg", type=float, default=30.0, help="近5日最大涨幅%（默认 30，主线清晰可放宽）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
+    ap.add_argument("--ml", action="store_true", help="附加 ML 排序分（LightGBM 次日涨幅预测）")
     args = ap.parse_args()
 
     import requests
@@ -142,6 +143,18 @@ def main():
         else:
             s["earn"] = ""
 
+    # ⑤ ML 排序分（--ml：LightGBM 预测次日涨幅，相对强弱辅助因子）
+    if args.ml:
+        try:
+            from scripts.tools.ml_rank import predict_rank
+            ml_codes = [s["code"] for s in passed[:30]]
+            ml_pred = predict_rank(S, ml_codes, days=260)
+            if ml_pred:
+                for s in passed:
+                    s["ml_score"] = ml_pred.get(s["code"])
+        except Exception as e:
+            print(f"[WARN] ML 排序失败: {e}")
+
     # ── 输出 ──────────────────────────────────────────────
     # 行业聚类（锁定主线）
     ind_cnt = Counter(s["ind"] for s in passed)
@@ -167,7 +180,8 @@ def main():
     passed.sort(key=lambda s: -(s["chg5d"] or 0))
     for s in passed[:20]:
         earn = f"💹{s['earn']}" if s["earn"] else ""
-        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}] {earn}")
+        ml = f" ML:{s['ml_score']:+.1f}%" if s.get("ml_score") is not None else ""
+        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}] {earn}{ml}")
 
     # 写文件
     dstr = now.strftime("%Y-%m-%d")
