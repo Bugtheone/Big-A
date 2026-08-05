@@ -14,6 +14,14 @@
 """
 import sys, os, argparse, json
 from datetime import datetime
+
+def _rt():
+    """真实时间（腾讯 CDN 权威，禁止沿用旧时间戳）。"""
+    try:
+        from scripts.tools.real_time import get_real_time
+        return datetime.strptime(get_real_time()["used"], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return _rt()
 from collections import Counter
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -87,7 +95,7 @@ def main():
     import requests
     S = requests.Session(); S.trust_env = False
     S.headers.update({"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"})
-    now = datetime.now()
+    now = _rt()
 
     # ① 成交额 TOP N
     top = fetch_top(S, args.top)

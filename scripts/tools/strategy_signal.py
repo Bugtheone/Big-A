@@ -14,6 +14,14 @@
 import sys, os, json, argparse
 from datetime import datetime
 
+def _rt():
+    """真实时间（腾讯 CDN 权威，禁止沿用旧时间戳）。"""
+    try:
+        from scripts.tools.real_time import get_real_time
+        return datetime.strptime(get_real_time()["used"], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return _rt()
+
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _PROJECT_ROOT)
 
@@ -31,7 +39,7 @@ def main():
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     args = ap.parse_args()
 
-    now = datetime.now()
+    now = _rt()
     dstr = now.strftime("%Y-%m-%d")
     hhmm = now.strftime("%H%M")
     from scripts.market_api import api

@@ -15,6 +15,14 @@
 import sys, os, argparse
 from datetime import datetime
 
+def _rt():
+    """真实时间（腾讯 CDN 权威，禁止沿用旧时间戳）。"""
+    try:
+        from scripts.tools.real_time import get_real_time
+        return datetime.strptime(get_real_time()["used"], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return _rt()
+
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _PROJECT_ROOT)
 
@@ -147,7 +155,7 @@ def main():
     S = requests.Session()
     S.trust_env = False
     S.headers.update({"User-Agent": "Mozilla/5.0"})
-    now = datetime.now()
+    now = _rt()
     _out(f"=== 盘中增强 {now:%H:%M:%S} ===")
     lines = []  # 收集输出供写文件
 

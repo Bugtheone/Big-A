@@ -18,6 +18,14 @@ import os
 import sys
 from datetime import datetime
 
+def _rt():
+    """真实时间（腾讯 CDN 权威，禁止沿用旧时间戳）。"""
+    try:
+        from scripts.tools.real_time import get_real_time
+        return datetime.strptime(get_real_time()["used"], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return _rt()
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 else:
@@ -76,7 +84,7 @@ def _selfcheck_gate() -> int:
 
 
 def snapshot() -> dict:
-    now = datetime.now()
+    now = _rt()
     snap = {s["name"]: s for s in (api.index_snapshot() or [])}
     b = api.breadth()
     zp = em_zt_pool() or []
@@ -128,7 +136,7 @@ def render(d: dict) -> str:
 def main() -> int:
     if "--check-gate" in sys.argv:
         return _selfcheck_gate()
-    now = datetime.now()
+    now = _rt()
     if not in_trading_hours(now) and "--force" not in sys.argv:
         print(f"[SKIP] {now:%Y-%m-%d %H:%M:%S} 非交易时段（9:30-11:30/13:00-15:00），"
               f"不生成盘中快照。需强制生成请加 --force")
@@ -140,7 +148,7 @@ def main() -> int:
     text = render(d)
     print(text)
     # 写入 reports/daily/<日期>/intraday_<HHMM>.md
-    dt = datetime.now()
+    dt = _rt()
     outdir = os.path.join(_PROJECT_ROOT, "reports", "daily", dt.strftime("%Y-%m-%d"))
     os.makedirs(outdir, exist_ok=True)
     out = os.path.join(outdir, f"intraday_{dt.strftime('%H%M')}.md")
