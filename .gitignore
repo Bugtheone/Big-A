@@ -48,7 +48,6 @@ reports/
 assets/
 
 # ── 外部包 ──
-a-stock-data-main/
 
 # ── 数据缓存 ──
 data/*.json
