@@ -202,7 +202,7 @@ def stock_fund_flow_120d(code: str) -> list[dict]:
     try:
         _time.sleep(0.5)
         resp = em_get("https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get", params=params, timeout=15)
-        resp.raise_for_status()
+        # em_get 返回已解析 JSON dict（非 Response），无 raise_for_status
         lines = (resp.get("data") or {}).get("klines") or []
     except Exception as e:
         print(f"[fund_flow_120d] {code} 失败: {e}")

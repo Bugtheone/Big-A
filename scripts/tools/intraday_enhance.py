@@ -1,0 +1,161 @@
+# -*- coding: utf-8 -*-
+"""盘中增强数据工具（2026-08-05 P0/P1/P2 落地）：
+  ① 分时确认（回踩买点"缩量企稳"判断）
+  ② 港美股 AI 映射（英伟达/台积电/博通/AMD/恒科 → 预判 A股半导体链）
+  ③ 盘口封单强度（涨停股买一封单量）
+  ④ 人气榜舆情（东财人气榜，热股监测）
+
+用法:
+  python scripts/tools/intraday_enhance.py                # 全量输出（分时重点股 + 港美股 + 盘口）
+  python scripts/tools/intraday_enhance.py --code 000977  # 单股分时+盘口
+"""
+import sys, os, argparse
+from datetime import datetime
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _PROJECT_ROOT)
+
+# 回踩买点重点股（分时确认对象：浪潮/曙光/韦尔 + 科创佰维/海光 + 连板传智）
+_WATCH = [("000977", "浪潮信息"), ("603019", "中科曙光"), ("603501", "韦尔股份"),
+          ("688525", "佰维存储"), ("688041", "海光信息"), ("003032", "传智教育")]
+# 港美股 AI 映射
+_GLOBAL = [("usNVDA", "英伟达"), ("usTSM", "台积电"), ("usAVGO", "博通"),
+           ("usAMD", "AMD"), ("hkHSTECH", "恒生科技")]
+
+
+def _out(*a):
+    print(*a, flush=True)
+
+
+def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--code", help="单股代码（分时+盘口）")
+    args = ap.parse_args()
+
+    import requests
+    S = requests.Session(); S.trust_env = False
+    S.headers.update({"User-Agent": "Mozilla/5.0"})
+
+    now = datetime.now()
+
+    # ── ① 分时确认 ───────────────────────────────────────
+    def minute_check(code, name):
+        """腾讯分时：返回 {现价, 涨跌%, 最后5分钟量/前30分均量比}，缩量企稳=量比<0.8"""
+        pref = ("sh" if code.startswith(("6", "9")) else "sz") + code
+        try:
+            r = S.get("https://web.ifzq.gtimg.cn/appstock/app/minute/query",
+                      params={"code": pref}, timeout=8)
+            d = r.json()["data"][pref]["data"]["data"]
+            if len(d) < 5:
+                return None
+            # 每点: 字符串 "HHMM 价 累计量 累计额"
+            vols = []
+            last_price = 0.0
+            prev_vol = 0.0
+            for i, row in enumerate(d):
+                parts = str(row).split()
+                if len(parts) >= 3:
+                    last_price = float(parts[1])
+                    if i > 0:
+                        vols.append(max(float(parts[2]) - prev_vol, 0))
+                    prev_vol = float(parts[2])
+            if not vols:
+                return None
+            last5 = sum(vols[-5:]) / 5
+            prev30 = sum(vols[-30:-5]) / 25 if len(vols) > 30 else last5
+            ratio = last5 / prev30 if prev30 > 0 else 1
+            return {"price": last_price, "vol_ratio": round(ratio, 2), "pts": len(d)}
+        except Exception:
+            return None
+
+    # ── ② 港美股映射 ─────────────────────────────────────
+    def global_ai():
+        out = {}
+        for code, nm in _GLOBAL:
+            try:
+                r = S.get(f"https://qt.gtimg.cn/q={code}", timeout=8); r.encoding = "gbk"
+                f = r.text.split('"')[1].split("~")
+                if len(f) > 5 and float(f[4]):
+                    chg = round((float(f[3]) - float(f[4])) / float(f[4]) * 100, 2)
+                    out[nm] = {"price": float(f[3]), "chg": chg}
+            except Exception:
+                continue
+        return out
+
+    # ── ③ 盘口封单 ───────────────────────────────────────
+    def seal_strength(code, name):
+        pref = ("sh" if code.startswith(("6", "9")) else "sz") + code
+        try:
+            r = S.get(f"https://qt.gtimg.cn/q={pref}", timeout=8); r.encoding = "gbk"
+            f = r.text.split('"')[1].split("~")
+            return {"price": float(f[3]), "chg": float(f[32]),
+                    "buy1_vol": int(f[8]) if f[8] else 0, "sell1_vol": int(f[18]) if f[18] else 0}
+        except Exception:
+            return None
+
+    # ── ④ 人气榜（舆情） ─────────────────────────────────
+    def hot_top():
+        try:
+            from scripts.market_api import api
+            return (api.hot_rank(top=5) or [])
+        except Exception:
+            return []
+
+    _out(f"=== 盘中增强 {now:%H:%M:%S} ===")
+
+    if args.code:
+        c = args.code
+        # 找名称
+        nm = next((n for cc, n in _WATCH if cc == c), c)
+        _out(f"\n[个股 {nm}({c})]")
+        m = minute_check(c, nm)
+        s = seal_strength(c, nm)
+        if m:
+            _out(f"  分时: 价{m['price']} 量比{m['vol_ratio']}（<0.8=缩量企稳, >1.2=放量）  {m['pts']}点")
+        if s:
+            _out(f"  盘口: 价{s['price']} {s['chg']:+.2f}% 买一封单{s['buy1_vol']}手 卖一{s['sell1_vol']}手")
+        return 0
+
+    # 分时确认（重点股）
+    _out("\n[① 分时确认·回踩买点]")
+    for c, n in _WATCH:
+        m = minute_check(c, n)
+        if m:
+            st = "缩量企稳✅" if m["vol_ratio"] < 0.8 else ("放量⚠️" if m["vol_ratio"] > 1.2 else "平稳")
+            _out(f"  {n}: 价{m['price']} 量比{m['vol_ratio']} {st}")
+
+    # 港美股映射
+    _out("\n[② 港美股 AI 映射]")
+    g = global_ai()
+    avg = 0
+    for nm, d in g.items():
+        _out(f"  {nm}: {d['price']} {d['chg']:+.2f}%")
+        if nm != "恒生科技":
+            avg += d["chg"]
+    if g:
+        _out(f"  → 美股AI四巨头均值 {avg/4:+.2f}%（映射A股半导体链方向）")
+
+    # 盘口封单（连板股）
+    _out("\n[③ 盘口封单·连板监控]")
+    for c, n in _WATCH:
+        s = seal_strength(c, n)
+        if s and s["chg"] >= 9.9:
+            _out(f"  {n}: 涨停 {s['price']} 封单 {s['buy1_vol']}手" + ("（巨单封死）" if s["buy1_vol"] > 50000 else ""))
+        elif s:
+            _out(f"  {n}: {s['chg']:+.2f}% 买一 {s['buy1_vol']}手")
+
+    # 人气榜
+    _out("\n[④ 人气榜·舆情热股]")
+    try:
+        hot = hot_top()
+        if hot:
+            _out("  " + ", ".join(f"{x.get('name')}({x.get('code')})" for x in hot))
+    except Exception as e:
+        _out(f"  失败: {e}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
