@@ -115,14 +115,20 @@ def ts_suspend(ts_code=None, suspend_date=None):
 
 # ========== II. 基本面 ==========
 
-def ts_daily_basic(trade_date=None, ts_code=None):
+def ts_daily_basic(trade_date=None, ts_code=None, start=None, end=None):
     """PE/PB/市值/换手率/量比——波段选股核心
 
     ⚠️ 注意：daily_basic 无 pre_close / pct_chg 字段（2026-08-02 实测），
     涨跌家数/涨跌幅统计请用 ts_daily()。
+    支持 start/end（YYYYMMDD）拉历史范围（估值分位用）。
     """
     from scripts.tushare_api import get_pro
     pro = get_pro()
+    if start or end:
+        kw = {"ts_code": ts_code}
+        if start: kw["start_date"] = start
+        if end: kw["end_date"] = end
+        return _fetch(pro, "daily_basic", **kw)
     kw = {"trade_date": trade_date or datetime.now().strftime("%Y%m%d")}
     if ts_code: kw["ts_code"] = ts_code
     return _fetch(pro, "daily_basic", **kw)
