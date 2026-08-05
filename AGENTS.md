@@ -105,3 +105,21 @@
 ### 预期差纪律（2026-08-05）
 9. **"预期差"是交易核心**：超预期=实际>预期（涨）；不及预期=实际<预期（跌）；**业绩好但低于预期照样跌（利好兑现），业绩差但好于预期照样涨（利空出尽）**——不只看绝对值
 10. **中报披露季（8 月）**：预告（7 月区间）→ 中报（8 月实际）→ 超预期买/不及预期避（工具：`midreport_tracker.py` 自动预期差）
+
+### AI 对话自动工具全集（2026-08-05，全部可对话自动调用）
+> 下列工具产物文件随 15 分钟调度/18:00 复盘自动生成；**AI 对话中命中需求即读对应文件或直接运行工具**，禁止凭记忆编数。
+
+| 需求 | 工具/产物 | 生成时机 |
+|---|---|---|
+| 指数/广度/成交/涨停 | intraday_snapshot → intraday_*.md | 盘中 15 分钟 |
+| 板块变化 | sector_delta → sector_delta_*.md | 盘中 15 分钟 |
+| 策略信号（C/D/E/F/买点）| strategy_signal → strategy_signal_*.md | 盘中 15 分钟 |
+| 分时/A50/资金面/盘口/人气 | intraday_enhance → intraday_enhance_*.md | 盘中 15 分钟 |
+| **资金筛选选股**（四因子）| market_filter.py --ml --risk → market_filter_*.md | 18:00 复盘 |
+| 业绩预告（预增+主线）| earnings_forecast.py → earnings_forecast_*.md | 18:00 复盘 |
+| 中报披露/预期差/一致预期 | midreport_tracker.py --code XX | 18:00 复盘 |
+| 技术指标/估值分位 | tech_indicators.py --code XX | 对话按需 |
+| 风险因子（质押/减持/停牌）| risk_factors.py --codes XX | 18:00 复盘 |
+| GitHub 仓库/上游更新 | github_track.py | 18:00 复盘 |
+| 真实时间（禁止推算）| real_time.py | 每次输出 |
+| 盘后复核（Tushare 官方）| post_close_update.py → post_close_verify_*.md | 18:00 复盘 |

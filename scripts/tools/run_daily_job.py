@@ -32,8 +32,11 @@ def _log(msg: str) -> None:
 
 
 def run_step(name: str, script: str) -> bool:
-    """运行单个流水线步骤（子进程，cwd=项目根），返回是否成功。"""
-    cmd = [sys.executable, script]
+    """运行单个流水线步骤（子进程，cwd=项目根），返回是否成功。
+    script 支持带参数（如 'market_filter.py --ml --risk'），用 shlex 拆分。"""
+    import shlex
+    parts = shlex.split(script)
+    cmd = [sys.executable] + parts
     _log(f"=== 步骤: {name} ===  $ {' '.join(cmd)}")
     t0 = time.time()
     try:
@@ -62,6 +65,12 @@ def main() -> int:
     steps.append(("业绩预告情报", "scripts/tools/earnings_forecast.py"))
     # 中报披露季跟踪：中报披露计划 + 预期差（2026-08 披露季）
     steps.append(("中报披露跟踪", "scripts/tools/midreport_tracker.py"))
+    # 资金筛选选股：成交额TOP+业绩因子+ML排序+风险（四因子，AI 对话可读 market_filter_*.md）
+    steps.append(("资金筛选选股", "scripts/tools/market_filter.py --ml --risk"))
+    # 观察池风险因子（质押/减持/停牌，AI 对话可读）
+    steps.append(("观察池风险", "scripts/tools/risk_factors.py --codes 000977,603019,603501,688012,688525,688041,688256,002371,603986,688008,300857,002463,002916,000815,600186,601858,603629,002929"))
+    # GitHub 跟踪（本仓库动态 + 上游技能更新，AI 对话可读）
+    steps.append(("GitHub跟踪", "scripts/tools/github_track.py"))
 
     fails = 0
     for name, script in steps:
