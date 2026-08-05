@@ -57,7 +57,7 @@ bash scripts/tools/git_daily_tag.sh
 
 ## 六、GitHub main 分支保护（替代方案：本地 pre-push hook）
 
-> ⚠️ **GitHub 免费版私有仓库不支持服务器端分支保护**（需 Pro 或公开仓库，实测 API 返回 403）。
+> ✅ **已实际启用（2026-08-05 仓库公开后配置成功）**：main 分支保护 = PR 审查(1人) + CI 状态检查(quality/integration) + 禁 force push/删除。**直接 push main 已被 GitHub 拦截，须走 PR。**
 
 **本地替代已落地（`.githooks/pre-push` + `git config core.hooksPath .githooks`）**：
 - 禁止 force push 到 main（历史重写）
