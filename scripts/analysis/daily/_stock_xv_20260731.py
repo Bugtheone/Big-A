@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """个股层交叉验证 — 问财选出股 vs 腾讯实时行情 (L3数据源验证)"""
+import os
 import sys
 import io
 

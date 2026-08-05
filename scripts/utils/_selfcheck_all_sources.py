@@ -3,7 +3,7 @@
 import sys, os, subprocess, json, time
 
 if __name__ == '__main__':
-    sys.path.insert(0, r'c:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345')
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data'))
     from scripts.market_api import api
 
     results = {}

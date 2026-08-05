@@ -1,6 +1,6 @@
 """诊断第三轮: 所有可用的热点/资金流替代端点"""
 import sys, os, time, json, io
-sys.path.insert(0, r'c:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data'))
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 from scripts.market_api import api
