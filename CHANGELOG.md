@@ -2,6 +2,25 @@
 
 本项目遵循语义化版本（SemVer）。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [v0.2.0] — 2026-08-05
+
+### 新增（盘中实时更新体系）
+
+- **数据链路全自动化**：盘中 15 分钟快照（腾讯/东财/同花顺 8 档）→ 板块对比 → 策略信号（C/D/E/F 11 信号 + 回踩买点分时确认）→ 盘中增强（分时/A50/资金面/盘口/人气）
+- **资金筛选法落地**（market_filter.py）：成交额 TOP + 5日涨幅 + 站上双均线 + 行业聚类自动锁定主线
+- **业绩预告情报**（earnings_forecast.py）+ **中报披露跟踪**（midreport_tracker.py）：预期差（超预期/符合/不及）
+- **真实时间唯一源**（real_time.py）：腾讯 CDN 权威，禁止推算时间
+- **盘后复核**（post_close_update.py）：复盘每次重拉 Tushare 官方复核（7/7 零误差）
+- **GitHub 跟踪**（github_track.py）：本仓库动态 + 上游技能更新
+- **AI 数据纪律/版本管理/时间纪律/交易方法论**（AGENTS.md + docs/AI数据约束.md + docs/AI版本管理.md）
+
+### 工程化
+
+- **仓库公开 + main 分支保护**（PR + CI 门禁 + 禁强推；本地 pre-push hook 双保险）
+- **PR 流程规范化**：8-05 完成 5 个 PR（#8-#12）全走"分支→CI→merge"
+- **快照/每日 tag 回滚体系**（git_snapshot.sh / git_daily_tag.sh + reflog）
+- **修复 8 处东财报表名过期/参数 bug** + 清除个人 Windows 路径（公开前安全检查）
+
 ## [Unreleased] — 2026-08-02
 
 ### 新增
