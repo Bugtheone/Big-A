@@ -58,15 +58,17 @@ def main():
         print(f"⚠️ Tushare 当日数据未刷新（{dstr}），跳过复核（盘后 17:00 后重试）")
         return 0
 
-    # ② 腾讯收盘定格对比
-    tz = {s["name"]: s for s in api.index_snapshot()}
+    # ② 腾讯收盘定格对比（仅当日有效——腾讯接口只给当前实时，跨日无法取历史定格）
+    today = datetime.now().strftime("%Y%m%d")
+    is_today = date_s == today
+    tz = {s["name"]: s for s in api.index_snapshot()} if is_today else {}
     verify_lines = ["## Tushare 官方复核（复盘时重新拉取）", ""]
     verify_lines.append("| 指数 | Tushare 收盘 | 腾讯定格 | 误差 |")
     verify_lines.append("|---|---:|---:|---:|")
     mism = 0
     for nm in _IDX.values():
         s = ts.get(nm)
-        q = tz.get(nm)
+        q = tz.get(nm) if is_today else None
         if s and q:
             diff = round(abs(s["close"] - q["price"]), 2)
             mark = "✅" if diff <= 0.3 else "⚠️"
@@ -74,7 +76,8 @@ def main():
                 mism += 1
             verify_lines.append(f"| {nm} | {s['close']} | {q['price']} | {mark} {diff} |")
         elif s:
-            verify_lines.append(f"| {nm} | {s['close']} | — | — |")
+            note = "（非当日，无腾讯定格）" if not is_today else "腾讯无"
+            verify_lines.append(f"| {nm} | {s['close']} | — | {note} |")
     verify_lines.append("")
     verify_lines.append(f"> 复核时间：{t['used']}（腾讯 CDN）· 误差>0.3pt 计数：{mism}")
 
