@@ -10,9 +10,10 @@ _session.trust_env = False
 
 from datetime import datetime
 
-os.chdir(r"C:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345")
+BASE_DIR = os.environ.get("ANALYSIS_BASE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data"))
+os.makedirs(BASE_DIR, exist_ok=True)
+os.chdir(BASE_DIR)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-BASE_DIR = os.getcwd()
 NOW = datetime.now()
 p = print
 

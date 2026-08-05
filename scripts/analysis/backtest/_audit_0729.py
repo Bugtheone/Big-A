@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """2026-07-29 数据质量交叉审计"""
 import sys, os
-BASE_DIR = r"c:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345"
+BASE_DIR = os.environ.get("ANALYSIS_BASE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data"))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 os.chdir(BASE_DIR)
 

@@ -5,7 +5,8 @@ from collections import defaultdict,Counter
 try:sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encoding='utf-8',errors='replace')
 except Exception:pass
 
-BASE=r'C:\Users\PC-One\Desktop\整理后\股票相关\零散临时\1112345'
+BASE = os.environ.get("ANALYSIS_BASE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data"))
+os.makedirs(BASE, exist_ok=True)
 os.chdir(BASE)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from tushare_api import get_pro
