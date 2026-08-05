@@ -129,7 +129,7 @@ def main():
     signals["D1"] = _judge("D1 中军续涨", (zj_avg or -99) > 0, f"中军均涨幅 {zj_avg}% ({','.join(f'{n}{v}%' for n, v in zj_pct)})")
     signals["D2"] = _judge("D2 中军杀跌", (zj_avg or 99) < 0, f"中军均涨幅 {zj_avg}%")
     signals["E1"] = _judge("E1 广度<55%", (breadth or 100) < 55, f"广度 {breadth}%")
-    signals["E2"] = _judge("E2 涨停断层<80", (zt_cnt or 999) < 80, f"涨停 {zt_cnt}/80")
+    signals["E2"] = _judge("E2 涨停断层<60", (zt_cnt or 999) < 60, f"涨停 {zt_cnt}/60")
     signals["E3"] = _judge("E3 上证破5日线", False, "见下方上证价")
 
     # E3 特殊处理：需上证现价 vs MA5
@@ -137,13 +137,20 @@ def main():
     e3_pass = (sh_price is not None and ma5 is not None and sh_price < ma5)
     signals["E3"] = _judge("E3 上证破5日线", e3_pass, f"上证 {sh_price} vs MA5 {ma5}")
 
-    # ── 综合判定 ──────────────────────────────────────────
+    # ── 综合判定（分级：E1/E3 清仓级 > D2 减仓级 > E2 情绪级 > C 升级） ──
     c_pass = sum(1 for k in ("C1", "C2", "C3", "C4") if signals[k]["pass"])
-    e_pass = sum(1 for k in ("E1", "E2", "E3") if signals[k]["pass"])
+    e_hard = sum(1 for k in ("E1", "E3") if signals[k]["pass"])
+    e2 = signals["E2"]["pass"]
     d2 = signals["D2"]["pass"]
-    if e_pass >= 1 or d2:
-        action = "🔴 撤退/冻结" if e_pass >= 1 else "🟠 中军杀跌·减仓预警"
-        detail = f"撤退信号 E×{e_pass}" if e_pass else "中军杀跌 D2"
+    if e_hard >= 1:
+        action = "🔴 撤退/清仓"
+        detail = f"硬性撤退信号 E1/E3 ×{e_hard}"
+    elif d2:
+        action = "🟠 中军杀跌·减仓预警"
+        detail = "D2 中军杀跌（旭创/新易盛领跌），主线减仓"
+    elif e2:
+        action = "🟡 情绪不足·涨停断层"
+        detail = f"E2 涨停 {zt_cnt}<60，情绪降温，观察"
     elif c_pass >= 3:
         action = "🟢 升级信号·可上调仓位(20~40%)"
         detail = f"C 信号 {c_pass}/4"
@@ -159,8 +166,50 @@ def main():
         "量能情绪": {"广度": breadth, "涨停": zt_cnt, "最高板": max_days, "炸板率": zr},
         "主线": {"算力涨停": ai_cnt, "CPO": cpo, "中军": zj_pct, "中军均值": zj_avg},
         "信号": signals,
-        "综合": {"C通过": c_pass, "E通过": e_pass, "动作": action, "说明": detail},
+        "综合": {"C通过": c_pass, "E硬撤退": e_hard, "E2情绪": e2, "D2中军": d2,
+                 "动作": action, "说明": detail},
     })
+
+    # ── 回踩买点分时确认（P0-1，供自动提示买入信号） ──────
+    buy_conf = []
+    try:
+        from scripts.tools.intraday_enhance import minute_check, _WATCH
+        import requests as _rq
+        _S = _rq.Session(); _S.trust_env = False
+        _S.headers.update({"User-Agent": "Mozilla/5.0"})
+        for c, n in _WATCH:
+            m = minute_check(_S, c)
+            if not m:
+                continue
+            # 腾讯日K 算 MA10
+            pref = ("sh" if c.startswith(("6", "9")) else "sz") + c
+            try:
+                r = _S.get("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get",
+                           params={"param": f"{pref},day,,,70,qfq"}, timeout=8)
+                kl = (r.json()["data"][pref].get("qfqday") or r.json()["data"][pref].get("day") or [])
+                closes = [float(x[2]) for x in kl]
+                if len(closes) < 10:
+                    continue
+                ma10 = sum(closes[-10:]) / 10
+                dist = round((m["price"] / ma10 - 1) * 100, 1)
+                shrink = m["vol_ratio"] < 0.8
+                at_ma = -3 <= dist <= 3
+                if at_ma and shrink:
+                    status = "🟢 买点确认(回踩MA10+缩量企稳)"
+                elif at_ma:
+                    status = "🟡 回踩到位·待缩量"
+                elif shrink:
+                    status = "🟢 缩量企稳·待回踩"
+                else:
+                    status = "⚪ 观察"
+                buy_conf.append({"name": n, "code": c, "price": m["price"],
+                                 "dist_ma10": dist, "vol_ratio": m["vol_ratio"], "status": status})
+            except Exception:
+                continue
+    except Exception:
+        pass
+    res["回踩买点"] = buy_conf
+    _buy_signals = [b for b in buy_conf if "🟢 买点确认" in b["status"]]
 
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=1))
@@ -177,6 +226,14 @@ def main():
         s = signals[k]
         mark = "✅" if s["pass"] else ("⚠️" if k.startswith(("D", "E")) else "—")
         lines.append(f"- {mark} {s['signal']}: {s['detail']}")
+    # 回踩买点确认输出
+    if buy_conf:
+        lines.append("")
+        lines.append("## 回踩买点确认（日线MA10 + 分时量比）")
+        for b in buy_conf:
+            lines.append(f"- {b['status']}: {b['name']} 价{b['price']} 距MA10 {b['dist_ma10']:+.1f}% 量比{b['vol_ratio']}")
+        if _buy_signals:
+            lines.append(f"> 🎯 买点触发: {', '.join(b['name'] for b in _buy_signals)}（回踩MA10+缩量企稳，0.5~1% R 试错）")
     lines += ["", f"## 综合判定：{action}", f"> {detail}",
               "", "### 执行建议（对照 docs/当前策略.md）",
               "1. 🟢 升级（C≥3/4）：仓位 0~20% → 20~40%，主线回踩加仓",
