@@ -55,15 +55,24 @@ bash scripts/tools/git_snapshot.sh --label 主线改造   # 带标签
 bash scripts/tools/git_daily_tag.sh
 ```
 
-## 六、GitHub main 分支保护（建议配置）
+## 六、GitHub main 分支保护（替代方案：本地 pre-push hook）
 
+> ⚠️ **GitHub 免费版私有仓库不支持服务器端分支保护**（需 Pro 或公开仓库，实测 API 返回 403）。
+
+**本地替代已落地（`.githooks/pre-push` + `git config core.hooksPath .githooks`）**：
+- 禁止 force push 到 main（历史重写）
+- 禁止删除 main 分支
+- 普通 push 放行（正常提交，可回滚）
+- hook 入库（版本可控）+ deny 规则防 AI 删除 hook
+
+**如需 GitHub 服务器级保护**（更强）：仓库公开或升级 Pro 后，按以下配置：
 1. GitHub → Settings → Branches → Add rule
 2. Branch name pattern: `main`
 3. 勾选：
    - ✅ Require pull request reviews before merging
-   - ✅ Require status checks（勾选 CI workflow）
+   - ✅ Require status checks（勾选 `quality`、`integration`）
    - ✅ Do not allow bypassing
-4. 效果：**AI/任何人不能直接 push main，必须 PR + 门禁 + review**
+4. 效果：**直接 push main 被拦，必须 PR + 门禁 + review**
 
 ## 七、大任务隔离（worktree）
 
