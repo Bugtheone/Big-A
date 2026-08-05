@@ -82,6 +82,26 @@ def calc_expected_diff(code):
         return {"status": f"计算失败:{str(e)[:30]}"}
 
 
+def fetch_consensus(code):
+    """一致预期（问财：预测净利润中值/预测EPS，全年维度）。返回 dict 或 None。"""
+    try:
+        from scripts.market_api import api
+        w = api.iwencai_query(f"{code} 一致预期净利润", limit=1)
+        rows = w.get("data") or []
+        if rows:
+            c = rows[0].get("consensus") or {}
+            if c:
+                # 取预测净利润字段（如 预测净利润中值[20261231]）
+                np_vals = {k: v for k, v in c.items() if "净利润" in str(k) and "中值" in str(k)}
+                eps_vals = {k: v for k, v in c.items() if "每股收益" in str(k)}
+                return {"net_profit_mid": next(iter(np_vals.values()), None),
+                        "eps": next(iter(eps_vals.values()), None),
+                        "raw": {str(k)[:30]: v for k, v in list(c.items())[:5]}}
+    except Exception as e:
+        return {"error": str(e)[:40]}
+    return None
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -91,11 +111,16 @@ def main():
     args = ap.parse_args()
 
     if args.code:
-        print(f"=== {args.code} 预期差 ===")
+        print(f"=== {args.code} 预期差 + 一致预期 ===")
         d = calc_expected_diff(args.code)
         f = fetch_forecast(args.code)
+        c = fetch_consensus(args.code)
         print(f"  业绩预告: {f}")
         print(f"  预期差: {d}")
+        if c:
+            print(f"  一致预期(问财): 2026预测净利中值={c.get('net_profit_mid')} 预测EPS={c.get('eps')}")
+            if c.get("raw"):
+                print(f"    {c['raw']}")
         return 0
 
     disc = fetch_disclosure()
