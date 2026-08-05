@@ -84,3 +84,4 @@
 4. **每日快照**：crontab 18:10 自动打 tag（`ai-snapshot-YYYYMMDD`）
 5. **禁止破坏操作**：git reset --hard / push -f / rm -rf（config deny，AI 不可执行）
 6. 回滚速查见 `docs/AI版本管理.md`；reflog 是终极保险（commit 过就丢不了）
+5. **时间纪律（2026-08-05 强化）**：**禁止推算/猜测时间**。报告时间戳必须真实读取：`date` + 腾讯 CDN HTTP Date 校验（可用 `python scripts/tools/real_time.py` 返回权威北京时间）；推算的时间标注一律无效。
