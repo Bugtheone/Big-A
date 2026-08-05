@@ -415,3 +415,23 @@ def ts_ggt_daily(ts_code=None, trade_date=None, start=None, end=None):
     if start: kw["start_date"] = start
     if end: kw["end_date"] = end
     return _fetch(pro, "ggt_daily", **kw)
+
+
+def ts_pledge_stat(ts_code=None):
+    """股权质押统计（最新质押率，2026-08-05 风险因子 P2）。"""
+    from scripts.tushare_api import get_pro
+    pro = get_pro()
+    kw = {}
+    if ts_code: kw["ts_code"] = ts_code
+    return _fetch(pro, "pledge_stat", **kw)
+
+
+def ts_stk_holdertrade(ts_code=None, start=None, end=None):
+    """股东增减持（in_de: IN增/DE减，2026-08-05 风险因子 P2）。"""
+    from scripts.tushare_api import get_pro
+    pro = get_pro()
+    kw = {}
+    if ts_code: kw["ts_code"] = ts_code
+    if start: kw["start_date"] = start
+    if end: kw["end_date"] = end
+    return _fetch(pro, "stk_holdertrade", **kw)

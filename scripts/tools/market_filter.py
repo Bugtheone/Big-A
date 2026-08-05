@@ -91,6 +91,7 @@ def main():
     ap.add_argument("--max-chg", type=float, default=30.0, help="近5日最大涨幅%（默认 30，主线清晰可放宽）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--ml", action="store_true", help="附加 ML 排序分（LightGBM 次日涨幅预测）")
+    ap.add_argument("--risk", action="store_true", help="附加风险因子（质押/减持/停牌）")
     args = ap.parse_args()
 
     import requests
@@ -155,6 +156,16 @@ def main():
         except Exception as e:
             print(f"[WARN] ML 排序失败: {e}")
 
+    # ⑥ 风险因子（--risk：质押/减持/停牌）
+    if args.risk:
+        try:
+            from scripts.tools.risk_factors import check_risk
+            for s in passed[:20]:
+                r = check_risk(S, s["code"])
+                s["risk"] = r["risk"]
+        except Exception as e:
+            print(f"[WARN] 风险因子失败: {e}")
+
     # ── 输出 ──────────────────────────────────────────────
     # 行业聚类（锁定主线）
     ind_cnt = Counter(s["ind"] for s in passed)
@@ -181,7 +192,8 @@ def main():
     for s in passed[:20]:
         earn = f"💹{s['earn']}" if s["earn"] else ""
         ml = f" ML:{s['ml_score']:+.1f}%" if s.get("ml_score") is not None else ""
-        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}] {earn}{ml}")
+        risk = f" {s['risk']}" if s.get("risk") else ""
+        _out(f"  {s['name']}({s['code']}): 成交额{s['amount_yi']}亿 5日+{s['chg5d']}% 今日{s['chg']}% [{s['ind']}] {earn}{ml}{risk}")
 
     # 写文件
     dstr = now.strftime("%Y-%m-%d")
