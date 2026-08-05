@@ -211,6 +211,33 @@ def main():
     res["回踩买点"] = buy_conf
     _buy_signals = [b for b in buy_conf if "🟢 买点确认" in b["status"]]
 
+    # ── 信号变化对比（供调度主动推送） ─────────────────────
+    state_path = os.path.join(_PROJECT_ROOT, "reports", "daily", dstr, "strategy_state.json")
+    prev_state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r", encoding="utf-8") as f:
+                prev_state = json.load(f)
+        except Exception:
+            prev_state = {}
+    changes = []
+    prev_action = prev_state.get("action", "")
+    prev_buy = set(prev_state.get("buy_trigger", []))
+    new_buy = set(b["name"] for b in _buy_signals)
+    if prev_action and prev_action != action:
+        changes.append(f"信号变化: {prev_action} → {action}")
+    new_trig = new_buy - prev_buy
+    if new_trig:
+        changes.append(f"🆕 买点新增触发: {', '.join(sorted(new_trig))}")
+    dropped = prev_buy - new_buy
+    if dropped:
+        changes.append(f"买点失效: {', '.join(sorted(dropped))}")
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    with open(state_path, "w", encoding="utf-8") as f:
+        json.dump({"action": action, "buy_trigger": sorted(new_buy),
+                   "ts": now.strftime("%Y-%m-%d %H:%M:%S")}, f, ensure_ascii=False, indent=1)
+    res["信号变化"] = changes
+
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=1))
         return 0
@@ -220,8 +247,13 @@ def main():
              f"> 依据 docs/当前策略.md · 撤退优先（E > D > C）",
              "", "## 市场状态",
              f"- 上证 {sh}% · 上证50 {sh50}% · 广度 {breadth}% · 涨停 {zt_cnt}（最高 {max_days}板）· 炸板率 {zr}%",
-             f"- 算力题材涨停 {ai_cnt} 家 · CPO {cpo}% · 中军均值 {zj_avg}%（{'、'.join(f'{n}{v}%' for n, v in zj_pct)}）",
-             "", "## 信号判定"]
+             f"- 算力题材涨停 {ai_cnt} 家 · CPO {cpo}% · 中军均值 {zj_avg}%（{'、'.join(f'{n}{v}%' for n, v in zj_pct)}）"]
+    if changes:
+        lines.append("")
+        lines.append("## 🔔 信号变化（vs 上一档）")
+        lines.extend(f"- {c}" for c in changes)
+    lines.append("")
+    lines.append("## 信号判定")
     for k in ("C1", "C2", "C3", "C4", "D1", "D2", "E1", "E2", "E3"):
         s = signals[k]
         mark = "✅" if s["pass"] else ("⚠️" if k.startswith(("D", "E")) else "—")
