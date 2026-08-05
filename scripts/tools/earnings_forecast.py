@@ -109,8 +109,13 @@ def main():
 
     # 逐只主线判断（最多 30 只，避免 adata 限流）
     result = []
-    for r in rows[:30]:
+    seen_codes = set()
+    for r in rows[:60]:
         code = str(r.get("ts_code", "")).split(".")[0]
+        key = f"{code}_{r.get('end_date')}"
+        if key in seen_codes:
+            continue  # 去重（逐日拉取同预告多天出现）
+        seen_codes.add(key)
         ml = mainline_check(code)
         result.append({
             "code": code, "name": r.get("ts_code", "").split(".")[0],
