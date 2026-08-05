@@ -1,0 +1,33 @@
+#!/bin/bash
+# pre-push hook：防 AI/误操作破坏 main 分支（2026-08-05）
+# 规则：
+#   ① 禁止 force push 到 main（--force 或 +refs/heads/main）
+#   ② 禁止删除 main（push 空 ref）
+#   ③ 普通 push main 放行（正常提交，可回滚——快照 tag/reflog 兜底）
+# 回滚说明：用户手动执行 `git reset --hard ai-snapshot-xxx`（AI 已被 deny 禁 reset --hard）
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # 只处理 main 分支
+  case "$remote_ref" in
+    refs/heads/main|+refs/heads/main)
+      # ① 删除 main 分支 → 拒绝
+      if [ "$local_sha" = "$zero" ]; then
+        echo "❌ [pre-push] 禁止删除 main 分支" >&2
+        exit 1
+      fi
+      # ② force push 到 main（remote_ref 带 + 前缀）→ 拒绝
+      case "$remote_ref" in
+        +*)
+          echo "❌ [pre-push] 禁止 force push 到 main（历史重写）" >&2
+          echo "   如需回滚：请用快照 tag（git reset --hard ai-snapshot-xxx）后正常 push" >&2
+          exit 1
+          ;;
+      esac
+      # ③ 普通 push 放行
+      ;;
+  esac
+done
+
+exit 0
