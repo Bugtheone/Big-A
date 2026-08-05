@@ -60,6 +60,8 @@ def main() -> int:
     steps.append(("盘后复核更新", "scripts/tools/post_close_update.py"))
     # 业绩预告情报：盘后 Tushare forecast 刷新后自动生成（AI 对话可读 earnings_forecast_*.md）
     steps.append(("业绩预告情报", "scripts/tools/earnings_forecast.py"))
+    # 中报披露季跟踪：中报披露计划 + 预期差（2026-08 披露季）
+    steps.append(("中报披露跟踪", "scripts/tools/midreport_tracker.py"))
 
     fails = 0
     for name, script in steps:

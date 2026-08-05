@@ -127,12 +127,13 @@ def ts_daily_basic(trade_date=None, ts_code=None):
     if ts_code: kw["ts_code"] = ts_code
     return _fetch(pro, "daily_basic", **kw)
 
-def ts_income(ts_code=None, start=None, end=None, period=None, report_type="1"):
+def ts_income(ts_code=None, start=None, end=None, period=None, report_type="1", ann_date=None):
     from scripts.tushare_api import get_pro
     pro = get_pro()
     kw = {"report_type": report_type}
     if ts_code: kw["ts_code"] = ts_code
-    if period: kw["period"] = period
+    if ann_date: kw["ann_date"] = ann_date
+    elif period: kw["period"] = period
     else:
         s, e = _default_dates(start, end, 730)
         kw["start_date"] = s; kw["end_date"] = e
