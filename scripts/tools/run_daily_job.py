@@ -58,6 +58,8 @@ def main() -> int:
         steps.append(("飞书日报推送", "scripts/tools/daily_feishu_report.py"))
     # 盘后复核更新：每次复盘执行时重新拉取 Tushare 官方数据，更新收盘总结（2026-08-05）
     steps.append(("盘后复核更新", "scripts/tools/post_close_update.py"))
+    # 业绩预告情报：盘后 Tushare forecast 刷新后自动生成（AI 对话可读 earnings_forecast_*.md）
+    steps.append(("业绩预告情报", "scripts/tools/earnings_forecast.py"))
 
     fails = 0
     for name, script in steps:
