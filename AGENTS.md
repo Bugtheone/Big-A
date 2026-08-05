@@ -76,3 +76,11 @@
 - 有没有用过 web 搜索取数？用过 → 数据无效
 - 行情数据有没有时间戳？没有 → 标 stale
 - 关键结论有没有双源？没有 → 降级为"单源参考"
+
+### 版本管理纪律（2026-08-05 生效）— 防 AI 改乱，随时回滚
+1. **AI 动手改代码前必须跑 `bash scripts/tools/git_snapshot.sh`**（建快照 tag + stash 未提交）
+2. **小步提交**：一个任务一个 commit（feat/fix/docs），禁止一把梭
+3. **改完 review diff**：满意才 commit；不满意 `git checkout -- <文件>` 回滚
+4. **每日快照**：crontab 18:10 自动打 tag（`ai-snapshot-YYYYMMDD`）
+5. **禁止破坏操作**：git reset --hard / push -f / rm -rf（config deny，AI 不可执行）
+6. 回滚速查见 `docs/AI版本管理.md`；reflog 是终极保险（commit 过就丢不了）
