@@ -102,6 +102,15 @@ jobs:
       - name: 核心数据源连通性测试（腾讯行情，无鉴权）
         run: python tests/test_a_stock.py
 
+      - name: 介入点工具连通性测试（官方K线源，禁止估算门禁）
+        run: python -m pytest tests/test_entry_point.py -v --tb=short
+
+      - name: 策略量化工具连通性测试（趋势/突破/仓位，官方K线源）
+        run: python -m pytest tests/test_strategy_tools.py -v --tb=short
+
+      - name: 行情策略路由引擎测试（行情→策略→板块→仓位）
+        run: python -m pytest tests/test_market_router.py -v --tb=short
+
       - name: Tushare Pro 连通性测试（需真实 Token，失败不阻断）
         run: python tests/test_tushare_pro.py || echo "Tushare 测试跳过（无 Token 或网络受限）"
         continue-on-error: true

@@ -43,6 +43,7 @@
 
 ## 项目约定摘要
 - 项目：A股数据分析工具集（Python），根目录 scripts/ 含数据总线 `scripts/market_api.py`（`from scripts.market_api import api`）、数据守门员 `scripts/data_gate.py`
+- **策略文档体系**：策略流派分类框架见 `docs/策略分类.md`（永久元框架）；当前生效策略见 `docs/当前策略.md`（每日更新）；超跌反弹专用见 `docs/超跌反弹策略.md`；候选标的见 `docs/观察池.md`——AI 输出操作建议时必须先引用对应策略文档
 - 报告产物输出到 `reports/`，临时分析脚本用完删除
 - 编码规范：`Session().trust_env = False`、禁止裸 `except:`、`if __name__ == '__main__':` 必加、禁止硬编码路径
 
@@ -89,6 +90,12 @@
    - **每次输出报告/简报，时间戳必须当次实时读取** `real_time.py`（腾讯 CDN 权威），**禁止沿用上次拉数据的时间、禁止推算**
    - 所有脚本时间源已统一为 `_rt()`（内部调 real_time.py）——文件时间戳自动权威且每次刷新
    - 违规判据：报告时间戳与 `real_time.py` 当前输出不一致 = 违规，重做
+7. **介入点强制规则（2026-08-06 固化，防估算）**：
+   - **介入点/止损位/MA 位置一律用 `entry_point.py` 计算**（腾讯官方前复权日K源 `web.ifzq.gtimg.cn`），**禁止用记忆/口算/近似值充当介入点**
+   - `market_api.kline()` 只支持指数名不支持个股代码（返回 error）——**个股均线不得用其算**
+   - 输出介入点必须带工具输出的：MA5/MA10/MA20 + 偏离度 + 介入区 + 止损位
+   - 违规判据：报告中的介入点价位无法从 `entry_point.py` 输出追溯 = 违规，重做
+   - 回踩判定标准（工具内建）：距 MA10 ∈ [-3%, +3%] = 真回踩可介入；距 MA10 > 8% = 急拉超买严禁追高
 
 ### 交易方法论纪律（用户口述，2026-08-05 固化）
 1. **市场可操作判断（60/40 法则）**：市场约 60% 时间主线清晰、40% 无主线。**能否操作的必须条件 = 成交维持 2.5 万亿+ 且指数运行在 5/10 日均线之上**（双满足才可操作，否则观望）
@@ -119,6 +126,11 @@
 | 业绩预告（预增+主线）| earnings_forecast.py → earnings_forecast_*.md | 18:00 复盘 |
 | 中报披露/预期差/一致预期 | midreport_tracker.py --code XX | 18:00 复盘 |
 | 技术指标/估值分位 | tech_indicators.py --code XX | 对话按需 |
+| **介入点/止损位（官方K线，禁止估算）** | **entry_point.py --codes XX** | **每次输出介入点** |
+| **趋势状态（T-score 状态机）** | **trend_tracker.py --codes XX** | 对话按需 |
+| **突破判定（B-score）** | **breakout_detector.py --codes XX** | 对话按需 |
+| **仓位档位（60/40法则）** | **position_sizer.py** | 每次给仓位建议 |
+| **行情策略路由（门控→类型→策略→板块）** | **market_router.py** | 每次综合决策 |
 | 风险因子（质押/减持/停牌）| risk_factors.py --codes XX | 18:00 复盘 |
 | GitHub 仓库/上游更新 | github_track.py | 18:00 复盘 |
 | 真实时间（禁止推算）| real_time.py | 每次输出 |
