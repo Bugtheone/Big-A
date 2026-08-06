@@ -71,6 +71,8 @@ def main() -> int:
     steps.append(("观察池风险", "scripts/tools/risk_factors.py --codes 000977,603019,603501,688012,688525,688041,688256,002371,603986,688008,300857,002463,002916,000815,600186,601858,603629,002929"))
     # GitHub 跟踪（本仓库动态 + 上游技能更新，AI 对话可读）
     steps.append(("GitHub跟踪", "scripts/tools/github_track.py"))
+    # 风格预判（三维评分→次日防御/进攻/周期，AI 对话可读 style_forecast_*.md）
+    steps.append(("风格预判", "scripts/tools/style_forecast.py"))
 
     fails = 0
     for name, script in steps:
