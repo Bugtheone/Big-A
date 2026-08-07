@@ -844,18 +844,24 @@ class EastMoneyAPI:
             items = []
             if data.get("data") and data["data"].get("diff"):
                 for row in data["data"]["diff"]:
+                    def _f(key, default=0.0):
+                        v = row.get(key)
+                        try:
+                            return float(v) if v not in (None, "", "-", "--") else default
+                        except (TypeError, ValueError):
+                            return default
                     items.append({
                         "name": row.get("f14", ""),
                         "code": row.get("f12", ""),
-                        "price": round(row.get("f20", 0) or 0, 2),
-                        "change_pct": round(row.get("f3", 0) or 0, 2),
-                        "market_cap_yi": round((row.get("f2", 0) or 0) / 1e8, 2),
-                        "main_net_yi": round((row.get("f62", 0) or 0) / 1e8, 2),
-                        "super_large_yi": round((row.get("f66", 0) or 0) / 1e8, 2),
-                        "large_yi": round((row.get("f72", 0) or 0) / 1e8, 2),
-                        "mid_yi": round((row.get("f78", 0) or 0) / 1e8, 2),
-                        "small_yi": round((row.get("f84", 0) or 0) / 1e8, 2),
-                        "main_net_ratio": round(row.get("f184", 0) or 0, 2),
+                        "price": round(_f("f20"), 2),
+                        "change_pct": round(_f("f3"), 2),
+                        "market_cap_yi": round(_f("f2") / 1e8, 2),
+                        "main_net_yi": round(_f("f62") / 1e8, 2),
+                        "super_large_yi": round(_f("f66") / 1e8, 2),
+                        "large_yi": round(_f("f72") / 1e8, 2),
+                        "mid_yi": round(_f("f78") / 1e8, 2),
+                        "small_yi": round(_f("f84") / 1e8, 2),
+                        "main_net_ratio": round(_f("f184"), 2),
                         "lead_stock": row.get("f128", ""),
                     })
             return items
