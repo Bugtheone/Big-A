@@ -18,30 +18,34 @@ HSGT_HEADERS = {
 }
 
 def ths_eps_forecast(code: str) -> list:
-    """同花顺个股一致预期EPS。返回 [{year, eps, pe, pb, roe, analyst_count}, ...]"""
+    """同花顺机构一致预期EPS。
+
+    ⚠️ 2026-08-09 实测：旧端点 data.10jqka.com.cn/financial/yjyg/op/code/{code}/
+    页面结构已改版（myTable02 表不存在），改用 SKILL.md §2.2 文档端点
+    basic.10jqka.com.cn/new/{code}/worth.html（read_html 解析）。
+    code 支持 688017 / SH688017 / 688017.SH（内部归一化为纯 6 位）。
+    返回 [{年度, 预测机构数, 最小值, 均值, 最大值}, ...]（空表 = 无机构覆盖）
+    """
+    import pandas as pd
+    from io import StringIO
+    c = code[-6:] if len(code) > 6 else code
+    url = f"https://basic.10jqka.com.cn/new/{c}/worth.html"
+    headers = {
+        "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                       "AppleWebKit/537.36"),
+        "Referer": "https://basic.10jqka.com.cn/",
+    }
     try:
-        r = _session.get("https://data.10jqka.com.cn/financial/yjyg/op/code/"+code+"/",
-            headers={"User-Agent":UA},timeout=10)
-        r.encoding="gbk"; import re
-        r2 = _session.get(f"https://data.10jqka.com.cn/financial/yjyg/op/code/{code}/",
-            headers={"User-Agent":UA}, timeout=10)
-        r2.encoding="gbk"
-        table = re.search(r'<table[^>]*id="myTable02"[^>]*>(.*?)</table>', r2.text, re.S)
-        if not table: return []
-        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table.group(1), re.S)
-        hd = [re.sub(r'<[^>]+>','',c).strip() for c in re.findall(r'<th[^>]*>(.*?)</th>', rows[0], re.S)] if rows else []
-        n_hd = len(hd)
-        out = []
-        for row in rows[1:]:
-            cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)
-            if len(cells) < n_hd: continue
-            d = {}
-            for i, c in enumerate(cells):
-                t = re.sub(r'<[^>]+>','',c).strip()
-                if i < n_hd: d[hd[i]] = t
-            out.append(d)
-        return out
-    except Exception as e: return []
+        r = _session.get(url, headers=headers, timeout=15)
+        r.encoding = "gbk"
+        dfs = pd.read_html(StringIO(r.text))
+    except Exception as e:
+        return []
+    for df in dfs:
+        cols = [str(x) for x in df.columns]
+        if any("每股收益" in c or "均值" in c for c in cols):
+            return df.to_dict("records")
+    return dfs[0].to_dict("records") if dfs else []
 
 def ths_hot_reason(date: str = None) -> list:
     """同花顺当日强势股+涨停原因。返回 [{code,name,pct,reason,turnover,pe,market_cap}, ...]

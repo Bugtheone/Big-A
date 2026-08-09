@@ -1153,7 +1153,7 @@ class MarketAPI:
 
     # ========== 个股资金流（§3.4）==========
     def fund_flow_minute(self, code: str) -> List[Dict]:
-        """个股分钟级主力资金流向。返回 [{time,main_in,big_in,mid_in,small_in}, ...]"""
+        """个股分钟级主力资金流向（§3.4 push2 端点）。返回 [{time,main_net,small_net,mid_net,large_net,super_net}, ...]（单位:元）"""
         return gate.em_fund_flow_minute(code)
 
     # ========== 融资融券（§4.1）==========

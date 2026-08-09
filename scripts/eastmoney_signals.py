@@ -16,40 +16,41 @@ _session.trust_env = False
 # ========== 分钟级资金流向 (§3.4) ==========
 
 def eastmoney_fund_flow_minute(code: str, date: str = None) -> list[dict]:
-    """个股分钟级主力资金流向（大/中/小单净流入）。
-    code: 6位代码。date: YYYY-MM-DD（默认当日）。
-    返回每条: {time, main_in(主力净流入万元), big_in(大单), mid_in(中单), small_in(小单)}
+    """个股分钟级主力资金流向（主力/小单/中单/大单/超大单净流入）。
+
+    ⚠️ 2026-08-09 实测：旧端点 push2his.eastmoney.com/api/qt/stock/fflow/minute/get
+    已 404（4 主机全失效），改用 SKILL.md §3.4 文档端点
+    push2.eastmoney.com/api/qt/stock/fflow/kline/get（klt=1 分钟）。
+    金额单位：元（非万元）。
+
+    返回每条: {time, main_net, small_net, mid_net, large_net, super_net}
     """
-    if date is None:
-        date = datetime.now().strftime("%Y-%m-%d")
+    secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
+    url = "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get"
+    params = {
+        "secid": secid, "klt": 1,
+        "fields1": "f1,f2,f3,f7",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57",
+    }
+    headers = {"User-Agent": UA, "Referer": "https://quote.eastmoney.com/",
+               "Origin": "https://quote.eastmoney.com"}
     try:
-        r = em_get(
-            "https://push2his.eastmoney.com/api/qt/stock/fflow/minute/get",
-            params={
-                "lmt": 0, "klt": 1, "fields1": "f1,f2,f3,f4",
-                "fields2": "f51,f52,f53,f54,f55",
-                "secid": f"{'1' if code.startswith('6') else '0'}.{code}",
-                "ut": "b2884a393a59ad640ee3e7d59f570b63",
-            },
-            headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"},
-            timeout=10,
-        )
-        js = r
-        lines = (js.get("data") or {}).get("data") or []
+        r = em_get(url, params=params, headers=headers, timeout=10)
     except Exception as e:
-        print(f"[fund_flow_minute] {code} 失败: {e}")
+        print(f"[fund_flow_minute] {code} 请求失败: {e}")
         return []
     out = []
-    for line in lines:
+    for line in (r.get("data") or {}).get("klines") or []:
         parts = line.split(",")
-        if len(parts) < 4:
+        if len(parts) < 6:
             continue
         out.append({
             "time": parts[0],
-            "main_in": float(parts[1]) if parts[1] != "-" else 0,
-            "big_in": float(parts[2]) if parts[2] != "-" else 0,
-            "mid_in": float(parts[3]) if parts[3] != "-" else 0,
-            "small_in": float(parts[4]) if len(parts) > 4 and parts[4] != "-" else 0,
+            "main_net": float(parts[1]),
+            "small_net": float(parts[2]),
+            "mid_net": float(parts[3]),
+            "large_net": float(parts[4]),
+            "super_net": float(parts[5]),
         })
     return out
 
@@ -200,6 +201,10 @@ def daily_dragon_tiger(board_type: str = "daily_billboard", date: str = None) ->
     """
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
+    # ⚠️ reportName 必须连写且带 _DETAILSNEW 后缀（2026-08-09 实测）：
+    # RPT_DAILY_BILLBOARD_DETAILSNEW / RPT_DAILYBILLBOARDDETAILS 均返回 0 条，
+    # 正确为 RPT_DAILYBILLBOARD_DETAILSNEW（board 名去下划线连写 + _DETAILSNEW）
+    report_name = f"RPT_{board_type.replace('_', '').upper()}_DETAILSNEW"
     try:
         r = em_get(
             "https://datacenter-web.eastmoney.com/api/data/v1/get",
@@ -208,7 +213,7 @@ def daily_dragon_tiger(board_type: str = "daily_billboard", date: str = None) ->
                 "sortTypes": "-1,1",
                 "pageSize": 500,
                 "pageNumber": 1,
-                "reportName": f"RPT_{board_type.upper()}DETAILS",
+                "reportName": report_name,
                 "columns": "ALL",
                 "source": "WEB", "client": "WEB",
                 "filter": f'(TRADE_DATE>=\'{date}\')',
