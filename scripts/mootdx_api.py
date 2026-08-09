@@ -42,13 +42,37 @@ def _tdx_probe(ip, port, timeout=2.0):
         return False
 
 
-def _tdx_validate(client) -> bool:
-    """真实取数验活：坏服务器可 TCP 握手通过却回 2 字节空 body → 静默空表。"""
+_TDX_DATE_RE = __import__("re").compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _tdx_valid_datetime(df) -> bool:
+    """时间戳合法性校验：坏服务器对指数返回垃圾时间戳（实测 '7058-34-83 15:00'），
+    非空但不合法——必须显式校验日期格式，不能只查非空。"""
     try:
-        df = client.bars(symbol='000001', frequency=9, offset=1)
-        return df is not None and not df.empty
+        d = str(df["datetime"].iloc[-1])[:10]
+        return bool(_TDX_DATE_RE.match(d))
     except Exception:
         return False
+
+
+def _tdx_validate(client) -> bool:
+    """真实取数验活：坏服务器可 TCP 握手通过却回 2 字节空 body → 静默空表。
+    2026-08-09 增强：① 个股通道真实取数 + 时间戳合法性；② 指数通道验活
+    （index_bars 走 get_index_bars，实测存在个股正常但指数返回垃圾的坏服务器）。
+    """
+    try:
+        df = client.bars(symbol='000001', frequency=9, offset=1)
+        if df is None or df.empty or not _tdx_valid_datetime(df):
+            return False
+    except Exception:
+        return False
+    try:
+        idx = client.index_bars(symbol='999999', frequency=9, offset=1)
+        if idx is None or idx.empty or not _tdx_valid_datetime(idx):
+            return False
+    except Exception:
+        return False
+    return True
 
 
 def tdx_client(market='std'):
