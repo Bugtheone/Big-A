@@ -158,7 +158,8 @@ class MootdxAPI:
         return out
 
     def transaction(self, code: str, count: int = 100) -> list:
-        """逐笔成交。返回 [{time,price,volume,amount,buy_or_sell(0=卖1=买2=中性)}, ...]"""
+        """逐笔成交（仅当日盘中）。返回 [{time,price,volume,amount,buy_or_sell(0=卖1=买2=中性)}, ...]
+        ⚠️ 非交易时间/周末返回空属正常；历史逐笔用 transaction_history()。"""
         if not self.client: return []
         try:
             df = self.client.transaction(symbol=code, offset=count)
@@ -166,6 +167,26 @@ class MootdxAPI:
         except Exception: return []
         return [{"time": str(d), "price": r[0], "volume": int(r[1]),
                  "amount": r[2], "buy_or_sell": int(r[3])} for d, r in df.iterrows()]
+
+    def transaction_history(self, code: str, date: str, count: int = 100) -> list:
+        """历史逐笔成交（2026-08-09 实测补全）。
+        用 mootdx transactions()（带 date，走 get_history_transaction_data），
+        此前只有当日 transaction()，周日/盘后无法取历史。date=YYYYMMDD。
+        返回 [{time,price,volume,buy_or_sell}, ...]（含收盘集合竞价 15:00-15:30 记录，vol 可能为 0）。
+        """
+        if not self.client: return []
+        try:
+            df = self.client.transactions(symbol=code, date=date, offset=count)
+            if df is None or df.empty: return []
+        except Exception: return []
+        out = []
+        for _, r in df.iterrows():
+            try:
+                out.append({"time": str(r["time"]), "price": float(r["price"]), "volume": int(r["vol"]),
+                            "buy_or_sell": int(r["buyorsell"])})
+            except (ValueError, TypeError, KeyError, IndexError):
+                continue
+        return out
 
     def finance(self, code: str) -> dict:
         """财务快照（PE/PB/ROE/股东权益/营业收入等）。"""
