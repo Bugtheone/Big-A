@@ -28,10 +28,11 @@
 | 宏观数据/申万行业/美股港股 ETF/期货外汇/可转债/龙虎榜（腾讯自选股） | `westock-data` | 已装 `.grok/skills/westock-data`，`npx -y westock-data-skillhub@1.0.5 <命令>`，免 key |
 | 自然语言选股/题材搜索/个股行情问答 | `hithink-astock-selector` / `hithink-finance-query` / `hithink-market-query`（问财） | 已装 `.grok/skills/` 三个核心问财技能（另有全套 hithink-* 在 `skills/` 商店目录）；key 在 `config/iwencai_config.json` |
 | **补充验证源（仅交叉验证，不作主源）**：A股/港股/美股行情 K线、涨跌停/资金流/龙虎榜/财务、ETF/指数/基金、期货债券、宏观/公告/研报/新闻 | `ftshare`（FTShare-MCP，远程 Streamable HTTP） | opencode 已配置 `mcp__ftshare__ft_*`（199 工具：194 个 `ft_*` 数据工具 + 5 个便捷查询入口），公共地址 `https://market.ft.tech/gateway/mcp`（server 0.1.1），免 key 免安装、只读；首次调用先 `initialize` 取 `Mcp-Session-Id` |
+| **补充验证源（与 FTShare-MCP 同源同层，仅交叉验证）**：A股/港股/美股/ETF/基金/指数/板块/宏观/可转债/新闻等 153 个子技能 | `ftshare-market-data`（FTShare-skills，数据级 Skill） | 已装 `~/.config/opencode/skills/ftshare-market-data/`（1 主 skill 路由 + `run.py` 统一调度 + 153 子 skill，2026-08-09 接入），调用 `python <run.py> <子技能名> [参数]`，走 `market.ft.tech` `/api/v1` 公共 API 免 key 只读；对话命中描述（行情/估值/K线/指数权重/宏观）自动加载 |
 
-**路由原则**：① 实时行情/估值 → a-stock-data（mootdx/腾讯不封IP）；② Tushare 独有数据 → tushare-pro；③ 宏观/港美股 → westock-data；④ 选股/题材 → 问财；⑤ **关键结论交叉验证 → 四源技能 + FTShare-MCP 互验，FTShare 仅作补充验证源（A股/港美股/宏观覆盖广），实时行情仍以 a-stock-data 主源为准，禁止以 FTShare 为唯一数据源**。两源以上交叉验证关键结论。取数一律用上述技能/MCP，严禁 web_search 或凭记忆编数据。
+**路由原则**：① 实时行情/估值 → a-stock-data（mootdx/腾讯不封IP）；② Tushare 独有数据 → tushare-pro；③ 宏观/港美股 → westock-data；④ 选股/题材 → 问财；⑤ **关键结论交叉验证 → 四源技能 + FTShare-MCP / FTShare-skills 互验，FTShare 系仅作补充验证源（A股/港美股/宏观覆盖广），实时行情仍以 a-stock-data 主源为准，禁止以 FTShare 为唯一数据源**。两源以上交叉验证关键结论。取数一律用上述技能/MCP，严禁 web_search 或凭记忆编数据。
 
-**自动激活保证**：a-stock-data V3.6.0 已注册为 Grok 用户级技能（`~/.grok/skills/a-stock-data`）并在项目 `a-stock-data-main/` 双份备份（md5 一致），AI agent 对话中命中描述即自动加载；命中 A 股取数需求**必须先走 a-stock-data 主源**（mootdx/腾讯不封 IP），Tushare 独有数据 → tushare-pro，宏观/港美股 → westock-data，选股/题材 → 问财 SkillHub，交叉验证 → FTShare-MCP（`mcp__ftshare__*`）——四源能力 + FTShare 共同构成完整取数链路，禁止降级为 web_search 或训练数据。
+**自动激活保证**：a-stock-data V3.6.0 已注册为 Grok 用户级技能（`~/.grok/skills/a-stock-data`）并在项目 `a-stock-data-main/` 双份备份（md5 一致），AI agent 对话中命中描述即自动加载；命中 A 股取数需求**必须先走 a-stock-data 主源**（mootdx/腾讯不封 IP），Tushare 独有数据 → tushare-pro，宏观/港美股 → westock-data，选股/题材 → 问财 SkillHub，交叉验证 → FTShare-MCP（`mcp__ftshare__*`）/ FTShare-skills（`ftshare-market-data`）——四源能力 + FTShare 共同构成完整取数链路，禁止降级为 web_search 或训练数据。
 
 > **westock-data 连通性注意**（2026-08-02 实测）：本机 `~/.npmrc` 硬编码了失效代理 `http://172.19.64.1:7897`，包未缓存时 `npx` 拉取会长时间挂起。包已缓存在 `~/.npm/_npx`，正常情况下 `npx -y westock-data-skillhub@1.0.5 <命令>` 可直接用；若再次遇到 npx 卡死，改用 `env npm_config_proxy= npm_config_https_proxy= NO_PROXY='*' npx -y westock-data-skillhub@1.0.5 <命令>` 绕过失效代理（直连 registry 与 westock 接口均可达）。
 
@@ -41,7 +42,10 @@
 2. **四大数据源技能已全部装进 Grok 技能目录**（`~/.grok/skills/` 用户级 + `.grok/skills/` 项目级），AI agent 直接对话即可被自动激活，无需手动加载；命中描述即调用，不得以"没加载技能"为由改用 web_search 或训练数据。
 3. **V3.6.0 已知行为**（2026-07-31 实测）：北交所老号段（43/83/87）返回僵尸数据且不报错，一律先用 `norm_ticker()` 归一化、用 920 新码；`tencent_quote()` 带 `is_stale` 标志；东财研报遇老码抛 ValueError 而非静默返回空。
 4. **验证手段（机器保证，已进 CI）**：跑 `python scripts/verify_a_stock_data_v360.py`（本地门禁：双份版本==3.6.0 + md5 一致 + V3.6.0 API 面完整 + 无 V3.5 及更早接口残留 + 四源技能在位，CI 每次提交自动执行）；`python scripts/verify_a_stock_data_v360.py --live`（联网冒烟：腾讯行情 + Tushare/westock/问财 三源链路）；`grok inspect` 可查技能清单；`python tests/test_a_stock.py` 连通性测试；关键结论两源以上交叉验证。
-5. **FTShare-MCP 为远程公共只读服务**（server 0.1.1，2026-08-09 接入 opencode：`~/.config/opencode/opencode.jsonc` 的 `ftshare` remote 配置，`opencode mcp list` 显示 connected，公共地址 `https://market.ft.tech/gateway/mcp`）：**仅作交叉验证补充源**，实时行情仍以 a-stock-data 主源为准；服务端由官方维护（199 工具），调用失败显式降级到四源技能，禁止以 FTShare 为唯一数据源。
+5. **FTShare 系为远程公共只读服务，仅作交叉验证补充源**（2026-08-09 接入 opencode）：
+   - **FTShare-MCP**（server 0.1.1）：`~/.config/opencode/opencode.jsonc` 的 `ftshare` remote 配置（`opencode mcp list` 显示 connected），公共地址 `https://market.ft.tech/gateway/mcp`，199 工具（194 个 `ft_*` + 5 个便捷入口）；
+   - **FTShare-skills**（`ftshare-market-data`）：已装 `~/.config/opencode/skills/ftshare-market-data/`，1 主 skill + 153 子 skill，`python run.py <子技能名> [参数]` 走 `market.ft.tech` `/api/v1` 公共 API；
+   - 实时行情仍以 a-stock-data 主源为准；服务端由官方维护，调用失败显式降级到四源技能，禁止以 FTShare 为唯一数据源。
 
 ## 项目约定摘要
 - 项目：A股数据分析工具集（Python），根目录 scripts/ 含数据总线 `scripts/market_api.py`（`from scripts.market_api import api`）、数据守门员 `scripts/data_gate.py`
