@@ -165,32 +165,70 @@ def lockup_expiry(days: int = 7) -> list[dict]:
 # ========== 行业对比 (§3.7 东财版) ==========
 
 def em_industry_board(board_type: str = "行业", date: str = None) -> list[dict]:
-    """东财行业/概念板块榜单。board_type: "行业"/"概念"。
-    返回每板块: code/name/pct/lead_stock/lead_pct/total_mcap/up_count/down_count
+    """东财行业/概念板块榜单（push2 clist，V3.6.1 对齐 SKILL.md §3.7）。
+
+    2026-08-09 修复：旧实现用 datacenter RPTA_WEB_THEME_DETAIL + `m:90+t2`（缺冒号笔误）
+    恒返回空；改走 push2 clist（m:90+t:2 / m:90+t:3，fid=f3 按涨幅排序）。
+
+    返回每板块: code/name/pct/up_count/down_count/lead_stock/lead_pct
     """
-    if date is None:
-        date = datetime.now().strftime("%Y-%m-%d")
-    mt = {"行业": "m:90+t2", "概念": "m:90+t3"}.get(board_type, "m:90+t2")
-    data = eastmoney_datacenter({
-        "type": "RPTA_WEB_THEME_DETAIL",
-        "sty": "ALL",
-        "sr": "-1", "st": "12",
-        "filter": "(MARKET=ALL)",
-        "p": "1", "ps": "200",
-    }, m=mt)
-    rows = (data.get("data") or []) if isinstance(data, dict) else (data or [])
+    fs = {"行业": "m:90+t:2", "概念": "m:90+t:3"}.get(board_type, "m:90+t:2")
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
+    params = {
+        "pn": "1", "pz": "200", "po": "1", "np": "1",
+        "fltt": "2", "invt": "2", "fid": "f3",
+        "fs": fs,
+        "fields": "f12,f14,f3,f104,f105,f128,f136,f140",
+    }
+    d = em_get(url, params=params, headers={"Referer": "https://quote.eastmoney.com/"}, timeout=15)
+    diff = (d.get("data") or {}).get("diff") or []
+    if isinstance(diff, dict):
+        diff = list(diff.values())
     out = []
-    for it in rows:
+    for it in diff:
         out.append({
-            "code": it.get("SECUCODE", ""),
-            "name": it.get("BOARD_NAME", ""),
-            "pct": it.get("CHANGE_RATE"),
-            "lead_stock": it.get("LEAD_STOCK_NAME", ""),
-            "lead_pct": it.get("LEAD_STOCK_CHANGE_RATE"),
-            "up_count": it.get("UP_COUNT"),
-            "down_count": it.get("DOWN_COUNT"),
+            "code": it.get("f12", ""),
+            "name": it.get("f14", ""),
+            "pct": it.get("f3", 0),
+            "up_count": it.get("f104", 0),
+            "down_count": it.get("f105", 0),
+            "lead_stock": it.get("f140", ""),
+            "lead_pct": it.get("f136", 0),
         })
     return out
+
+
+# ========== 个股板块归属 (§3.3 东财 slist) ==========
+
+def eastmoney_concept_blocks(code: str) -> dict:
+    """个股所属板块/概念归属（东财 slist，一次请求拿全，2026-08-09 融入）。
+    返回: {total, boards: [{name, code(BK码), change_pct, lead_stock}], concept_tags: [板块名...]}
+    """
+    market_code = 1 if code.startswith("6") else 0
+    params = {
+        "fltt": "2", "invt": "2",
+        "secid": f"{market_code}.{code}",
+        "spt": "3", "pi": "0", "pz": "200", "po": "1",
+        "fields": "f12,f14,f3,f128",
+    }
+    try:
+        d = em_get("https://push2.eastmoney.com/api/qt/slist/get",
+                   params=params, headers={"Referer": "https://quote.eastmoney.com/"}, timeout=15)
+    except Exception as e:
+        print(f"[WARN] 东财板块归属请求失败: {e}")
+        return {"total": 0, "boards": [], "concept_tags": []}
+    diff = (d.get("data") or {}).get("diff") or {}
+    items = diff.values() if isinstance(diff, dict) else diff
+    boards = []
+    for it in items:
+        boards.append({
+            "name": it.get("f14", ""),
+            "code": it.get("f12", ""),
+            "change_pct": it.get("f3", ""),
+            "lead_stock": it.get("f128", ""),
+        })
+    return {"total": len(boards), "boards": boards,
+            "concept_tags": [b["name"] for b in boards]}
 
 
 # ========== 连板股龙虎榜 (§3.9) ==========
