@@ -139,6 +139,14 @@ class TencentAPI:
             except (ValueError, IndexError):
                 continue
 
+            # 2026-08-09 补齐全字段（对齐 SKILL.md §1.2 实测校准索引）：
+            #   38=换手率% 39=PE(TTM) 43=振幅%(非PB!) 44=流通市值(亿) 45=总市值(亿)
+            #   46=PB 47=涨停价 48=跌停价 49=量比 52=PE(静)
+            def _f(i):
+                try:
+                    return float(fields[i]) if fields[i] else 0.0
+                except (ValueError, IndexError):
+                    return 0.0
             results[code_raw] = {
                 "name": name,
                 "price": price,
@@ -149,6 +157,16 @@ class TencentAPI:
                 "volume": volume,
                 "turnover": turnover,
                 "pe": pe,
+                "pe_ttm": pe,
+                "turnover_pct": _f(38),
+                "amplitude_pct": _f(43),
+                "float_mcap_yi": _f(44),
+                "mcap_yi": _f(45),
+                "pb": _f(46),
+                "limit_up": _f(47),
+                "limit_down": _f(48),
+                "vol_ratio": _f(49),
+                "pe_static": _f(52),
             }
         return results
 
