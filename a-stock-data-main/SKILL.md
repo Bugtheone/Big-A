@@ -610,9 +610,13 @@ quotes = client.quotes(symbol=['688017', '300476'])
 #   bid1~bid5, ask1~ask5, bid_vol1~bid_vol5, ask_vol1~ask_vol5
 #   vol(成交量), amount(成交额), servertime
 
-# === 逐笔成交（非交易时间返回空）===
-trades = client.transaction(symbol='688017', date='20260502')
+# === 逐笔成交 ===
+# 当日盘中：transaction()（无 date 参数；非交易时间/周末返回空属正常）
+trades_today = client.transaction(symbol='688017')
+# 历史逐笔：transactions()（带 date=YYYYMMDD，走 get_history_transaction_data；2026-08-09 实测 08-07 数据可取）
+trades = client.transactions(symbol='688017', date='20260502')
 # 返回: time, price, vol, num, buyorsell(0买/1卖/2中性)
+# ⚠️ 历史逐笔含收盘集合竞价记录（15:00-15:30，vol 可能为 0），需过滤
 ```
 
 **mootdx 不提供 PE / PB / 市值 / 换手率 / 涨跌停价** — 这些走腾讯财经。
@@ -2129,13 +2133,15 @@ client = tdx_client()  # 见 Prerequisites 的 tdx_client() helper（规避 0.11
 
 # market: 0=深圳, 1=上海
 fin = client.finance(symbol='688017')
-# 返回 37 个字段的季报快照:
-#   liutongguben(流通股本), zongguben(总股本)
-#   eps(每股收益), bvps(每股净资产), roe(净资产收益率%)
-#   profit(净利润), income(主营收入)
-#   meigujingzichan(每股净资产), meigugongjijin(每股公积金)
-#   meiguweifeipeili(每股未分配利润)
-#   等37个季报财务字段
+# 返回 37 个字段的季报快照（mootdx 0.11.7 实测列名为拼音体系，2026-08-09 校准）:
+#   liutongguben(流通股本), zongguben(总股本), gudongrenshu(股东人数)
+#   jingzichan(净资产), zongzichan(总资产), liudongfuzhai(流动负债)
+#   zhuyingshouru(主营收入), zhuyinglirun(主营利润), yingyelirun(营业利润)
+#   lirunzonghe(利润总额), shuihoulirun(税后利润), jinglirun(净利润)
+#   meigujingzichan(每股净资产), zibengongjijin(资本公积金), weifenpeilirun(未分配利润)
+#   jingyingxianjinliu(经营现金流), zongxianjinliu(总现金流), cunhuo(存货)
+#   ipo_date(上市日期), industry(行业), province(省份) 等
+# ⚠️ 无 eps/roe 字段（文档旧写法已失效）：EPS 需 jinglirun ÷ zongguben 自算
 ```
 
 ### 6.2 mootdx F10（公司文本资料）
