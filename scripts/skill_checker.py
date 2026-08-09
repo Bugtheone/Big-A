@@ -34,7 +34,7 @@ SKILL_MD_PATH = BASE_DIR / "a-stock-data-main" / "SKILL.md"
 SCRIPTS_DIR = BASE_DIR / "scripts"
 
 # ── 正则 ──
-_RE_ROUTE = re.compile(r'\|\s*(§?\s*[\d.]+)\s*\|\s*`([^`]+)`\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|')
+_RE_ROUTE = re.compile(r'\|\s*(§?\s*[\d.]+)\s*\|\s*`([^`]+(?:`\s*/\s*`[^`]+)*)`\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|')
 _RE_FUNC_DEF = re.compile(r'^def\s+(\w+)\s*\(')
 
 LAYER_NAMES = {
@@ -96,12 +96,14 @@ MODULE_MAP = {
                                  "baidu_kline_ma", "eastmoney_reports",
                                  "download_pdf", "industry_reports",
                                  "em_stock_monitor"]},
-    "eastmoney_signals.py": {"sec": "3.3,3.4,3.5,3.6,3.9",
+    "eastmoney_signals.py": {"sec": "3.3,3.4,3.5,3.6,3.9,8.5",
                              "gate": ["em_dragon_tiger_board", "em_daily_dragon_tiger",
                                       "em_lockup_expiry", "em_fund_flow_minute",
-                                      "em_concept_blocks", "em_hot_reason"],
+                                      "em_concept_blocks", "em_hot_reason",
+                                      "em_price_anomaly", "em_price_anomaly_count"],
                              "api": ["dragon_tiger", "lockup_expiry", "fund_flow_minute",
-                                    "hot_reason", "concept_blocks"]},
+                                    "hot_reason", "concept_blocks",
+                                    "em_price_anomaly", "em_price_anomaly_count"]},
     "eastmoney_fundamentals.py": {"sec": "4.1,4.2,4.3,4.4,4.5",
                                   "gate": ["em_margin_trading", "em_block_trade",
                                            "em_holder_num", "em_dividend", "em_fund_flow_120d"],

@@ -247,3 +247,84 @@ if __name__ == "__main__":
     items = lockup_expiry(7)
     for it in items[:3]:
         print(f"  {it['name']} {it['unlock_date']} 市值{it['float_mcap']}亿")
+
+
+# ============================================================
+# §8.5 东财日内异动池（V3.6.1 · SKILL.md 8.5，2026-08-09 融入）
+# ============================================================
+
+ANOMALY_BASE = "https://dycalchis.eastmoney.com/price-anomaly"
+# 东财 H5 固定公共参数，缺 team 会被拒（unknow team）
+HQ_PARAMS = {"team": "h5", "product": "EastMoney", "client": "WAP",
+             "version": "9001", "name": "WAP", "user": "123"}
+
+# 异动规则码（e 字段）→ 文字说明；s==6 且 e∈{4,5,6,7} 时按 e*10 取更严阈值那档
+ANOMALY_RULES = {
+    1:  "主板连续10个交易日内4次出现同向异常波动",
+    2:  "创业板连续10个交易日内3次出现同向异常波动",
+    3:  "科创板连续10个交易日内3次出现同向异常波动",
+    4:  "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+    5:  "连续十个交易日内日收盘价涨跌幅偏离值累计达到-50%",
+    6:  "连续三十个交易日内日收盘价涨跌幅偏离值累计达到+200%",
+    7:  "连续三十个交易日内日收盘价涨跌幅偏离值累计达到-70%",
+    8:  "北交所连续10个交易日内3次出现同向异常波动",
+    40: "连续十个交易日内日收盘价涨跌幅偏离值累计达到+150%",
+    50: "连续十个交易日内日收盘价涨跌幅偏离值累计达到-60%",
+    60: "连续30个交易日内日收盘价涨跌幅偏离值累计达到+300%",
+    70: "连续30个交易日内日收盘价涨跌幅偏离值累计达到-75%",
+}
+
+
+def _anomaly_market(code, m, board=None) -> str:
+    """异动记录 → 交易所。北交所与深市同为 m=0，按代码号段判（920/43/83/87 或规则码 8）。"""
+    c = str(code or "")
+    if c.startswith("920") or c[:2] in ("43", "83", "87") or board == 8:
+        return "BJ"
+    return "SH" if m == 1 else "SZ"
+
+
+def _anomaly_get(path: str, page_size: int, page_no: int, **extra) -> dict:
+    params = {**HQ_PARAMS, "pageSize": str(page_size), "pageNo": str(page_no), **extra}
+    d = em_get(f"{ANOMALY_BASE}/{path}", params=params,
+               headers={"Referer": "https://vipmoney.eastmoney.com/"}, timeout=20)
+    if d.get("result") != 0:
+        raise RuntimeError(f"东财异动接口拒绝: result={d.get('result')} msg={d.get('msg')!r}")
+    return d
+
+
+def em_price_anomaly(page_size: int = 200, page_no: int = 1) -> dict:
+    """日内异动明细（price-anomaly/list）。返回 {date, items:[...]}"""
+    d = _anomaly_get("list", page_size, page_no)
+    items = []
+    for x in d.get("data") or []:
+        e = x.get("e")
+        key = e * 10 if (x.get("s") == 6 and e in (4, 5, 6, 7)) else e
+        items.append({
+            "code": x.get("c"), "name": x.get("n"),
+            "market": _anomaly_market(x.get("c"), x.get("m"), x.get("s")),
+            "change_pct": x.get("a"),
+            "deviation": x.get("x"),
+            "days": x.get("d"),
+            "board": x.get("s"),
+            "rule_code": key,
+            "rule": ANOMALY_RULES.get(key, f"未知规则码 {key}"),
+            "is_today": x.get("o") != 2,
+        })
+    return {"date": str(d.get("date", "")), "pages": d.get("pages", 0), "items": items}
+
+
+def em_price_anomaly_count(page_size: int = 50, page_no: int = 1,
+                           sort_key: str = "", sort_dir: str = "") -> dict:
+    """异动统计（price-anomaly/count）：按标的聚合的异动次数 + 现价。"""
+    d = _anomaly_get("count", page_size, page_no, sortKey=sort_key, sortDir=sort_dir)
+    items = [{
+        "code": x.get("c"), "name": x.get("n"),
+        "market": _anomaly_market(x.get("c"), x.get("m"), x.get("s")),
+        "price": x.get("p"),
+        "change_pct": x.get("a"),
+        "times": x.get("t"),
+        "deviation": x.get("x"),
+        "days": x.get("d"),
+        "board": x.get("s"),
+    } for x in d.get("data") or []]
+    return {"date": str(d.get("date", "")), "pages": d.get("pages", 0), "items": items}
