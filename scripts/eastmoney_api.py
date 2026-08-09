@@ -25,7 +25,7 @@ import json
 import os
 import time
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -1206,3 +1206,42 @@ if __name__ == "__main__":
     print("东财数据源连通性测试:\n")
     for endpoint, status in em.test_connection().items():
         print(f"  {endpoint}: {status}")
+
+
+# ============================================================
+# §8.4 东财重点监控池（V3.6.0 · SKILL.md 8.4）
+# ============================================================
+
+MONITOR_URL = "https://mobappconfig.securities.eastmoney.com/emcfg/stock_monitor.json"
+
+# ⚠️ MARKET 是三值且含字母 "B"（北交所），不是 0/1 二值
+_MONITOR_MARKET = {"1": "SH", "0": "SZ", "B": "BJ"}
+
+
+def cn_today() -> str:
+    """北京时间的今天（YYYY-MM-DD）。A股"今天"按北京时间算，避免海外时区错一天。"""
+    return datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+
+
+def em_stock_monitor(only_active: bool = True) -> list[dict]:
+    """东财重点监控池（交易所风险警示 / 重点监控名单 + 生效时间窗）。
+    only_active=True 只留今天仍在监控窗口内的（按 VALIDATESTARTDATE~VALIDATEENDDATE 过滤）。
+    返回: [{code, name, market, start, end, link}]
+    """
+    r = em_get(MONITOR_URL, headers={"Referer": "https://vipmoney.eastmoney.com/"}, timeout=20)
+    rows = r if isinstance(r, list) else (r.get("data") if isinstance(r, dict) else [])
+    today = cn_today()
+    out = []
+    for x in rows:
+        start, end = x.get("VALIDATESTARTDATE", ""), x.get("VALIDATEENDDATE", "")
+        if only_active and not (start <= today <= end):
+            continue
+        raw_mkt = str(x.get("MARKET", "")).upper()
+        out.append({
+            "code":   x.get("STKCODE", ""),
+            "name":   x.get("STKNAME", ""),
+            "market": _MONITOR_MARKET.get(raw_mkt, f"?{raw_mkt}"),
+            "start":  start, "end": end,
+            "link":   x.get("LINK_URL", ""),
+        })
+    return out
