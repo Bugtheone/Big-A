@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """东财信息层 — 个股信息 + 涨停四池 + 人气榜 + 概念命中 (SKILL.md §6.3/§8.1/§10.2)"""
 import requests, time
-from datetime import datetime
+from datetime import datetime, timedelta
 from scripts.eastmoney_api import UA, em_get
 
 _session = requests.Session()
@@ -55,6 +55,25 @@ def _pool_fallback(pool_type: str, date: str, cooldown: bool = False) -> list:
     return []
 
 
+def _last_trade_date() -> str:
+    """最近交易日 YYYYMMDD（非交易日回退，2026-08-09 新增）。
+
+    用腾讯上证指数日K最后一根日期作权威（腾讯非交易日返回定格数据，
+    与 breadth/turnover 口径一致）；失败回退跳过周末的工作日。
+    """
+    try:
+        from scripts.tencent_api import get_tencent
+        kl = get_tencent().fetch_kline("000001", n_days=6, market="sh")
+        if kl:
+            return kl[-1][0].replace("-", "")
+    except Exception:
+        pass
+    d = datetime.now()
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d.strftime("%Y%m%d")
+
+
 def _em_pool(pool_type: str, date: str = None) -> list:
     """打板池统一入口（涨停/炸板/跌停/昨涨停）。
 
@@ -64,7 +83,10 @@ def _em_pool(pool_type: str, date: str = None) -> list:
     主源失败进入冷却期（30 分钟），期间直接走降级；到期自动重试，恢复即切回。
     """
     type_map = {"zt_pool":"limitUp","zb_pool":"limitUpBroken","dt_pool":"limitDown","yzt_pool":"surgedLimitUp"}
-    if date is None: date = datetime.now().strftime("%Y%m%d")
+    if date is None:
+        # ⚠️ 非交易日（周末/节假日）当天无涨停池：取当日必得空池 → 误判 E 档。
+        # 回退最近交易日：用腾讯指数K线最后日期作权威（与 breadth/turnover 的定格口径一致）。
+        date = _last_trade_date()
 
     # 冷却期内直接降级（不重复打失效端点）
     if _POOL_STATE["fail_count"] > 0 and time.time() - _POOL_STATE["last_attempt"] < _POOL_COOLDOWN:

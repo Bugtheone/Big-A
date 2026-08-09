@@ -827,16 +827,25 @@ class EastMoneyAPI:
         # 2026-08-03 修复：板块资金流周期由 fid 编码（今日 f62/5日 f164/10日 f174），
         # 旧写法 `fs=m:90+t:2&p:1` 已返回 rc:102 失效
         secid = fs
-        fid = {"今日": "f62", "5日": "f164", "10日": "f174"}.get(period, "f62")
+        # 2026-08-09 修复：取值字段须随 period 切换（此前恒读 f62，5日/10日返回今日同值）
+        #   今日 f62/f184 · 5日 f164/f165 · 10日 f174/f175（f164 等仅作排序 fid 时数值仍有效）
+        main_field = {"今日": "f62", "5日": "f164", "10日": "f174"}[period]
+        ratio_field = {"今日": "f184", "5日": "f165", "10日": "f175"}[period]
+        # 四档明细（超大/大/中/小）仅今日周期有拆分
+        detail_ok = period == "今日"
+        fid = main_field
         url = "https://push2.eastmoney.com/api/qt/clist/get"
 
         def _make_params(pn, pz):
+            fields = "f12,f14,f2,f3,f20,f128," + main_field + "," + ratio_field
+            if detail_ok:
+                fields += ",f66,f72,f78,f84"
             return {
                 "pn": str(pn), "pz": str(pz), "po": "1", "np": "1",
                 "ut": "bd1d9ddb04089700cf9c27f6f7426281",
                 "fltt": "2", "invt": "2", "fid": fid,
                 "fs": secid,
-                "fields": "f12,f14,f2,f3,f20,f62,f66,f72,f78,f84,f128,f184,f174,f175",
+                "fields": fields,
                 "_": str(int(time.time() * 1000)),
             }
 
@@ -856,12 +865,12 @@ class EastMoneyAPI:
                         "price": round(_f("f20"), 2),
                         "change_pct": round(_f("f3"), 2),
                         "market_cap_yi": round(_f("f2") / 1e8, 2),
-                        "main_net_yi": round(_f("f62") / 1e8, 2),
-                        "super_large_yi": round(_f("f66") / 1e8, 2),
-                        "large_yi": round(_f("f72") / 1e8, 2),
-                        "mid_yi": round(_f("f78") / 1e8, 2),
-                        "small_yi": round(_f("f84") / 1e8, 2),
-                        "main_net_ratio": round(_f("f184"), 2),
+                        "main_net_yi": round(_f(main_field) / 1e8, 2),
+                        "super_large_yi": round(_f("f66") / 1e8, 2) if detail_ok else 0.0,
+                        "large_yi": round(_f("f72") / 1e8, 2) if detail_ok else 0.0,
+                        "mid_yi": round(_f("f78") / 1e8, 2) if detail_ok else 0.0,
+                        "small_yi": round(_f("f84") / 1e8, 2) if detail_ok else 0.0,
+                        "main_net_ratio": round(_f(ratio_field), 2),
                         "lead_stock": row.get("f128", ""),
                     })
             return items

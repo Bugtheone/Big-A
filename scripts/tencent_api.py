@@ -403,9 +403,17 @@ class TencentAPI:
 
         total = up + down + flat
         elapsed = time.time() - t0
-        # 北交所数据新鲜度检测：收盘后腾讯API会清零涨跌幅
+        # 北交所数据新鲜度检测：收盘后腾讯API会清零涨跌幅（实测 2026-08-09 周日 170 只全平）
         bj_flat_ratio = markets["bj"]["flat"] / max(markets["bj"]["total"], 1)
         bj_fresh = "ok" if bj_flat_ratio < 0.5 else "stale_post_close"
+        if bj_fresh != "ok":
+            bj_fixed = self._fetch_bj_breadth_em()
+            if bj_fixed:
+                # 用东财北交所全量重算市场/全局涨跌比
+                delta = {k: bj_fixed[k] - markets["bj"][k] for k in ("up", "down", "flat")}
+                up += delta["up"]; down += delta["down"]; flat += delta["flat"]
+                markets["bj"] = bj_fixed
+                bj_fresh = "fixed_via_eastmoney"
         return {
             "total": total,
             "up": up,
@@ -417,6 +425,54 @@ class TencentAPI:
             "elapsed_s": round(elapsed, 1),
             "bj_data_status": bj_fresh,
         }
+
+    def _fetch_bj_breadth_em(self) -> dict:
+        """北交所广度回退源：东财 push2 clist（fs=m:0+t:81 北交所全量）。
+
+        腾讯收盘后清空北交所涨跌幅（全平），用东财一次请求补全。
+        返回 {up, down, flat, total}；失败返回空 dict（保持腾讯原值）。
+        """
+        try:
+            from scripts.eastmoney_api import em_get
+        except Exception:
+            return {}
+        url = "https://push2.eastmoney.com/api/qt/clist/get"
+        params = {
+            "pn": "1", "pz": "200", "po": "1", "np": "1",
+            "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+            "fltt": "2", "invt": "2", "fid": "f3",
+            "fs": "m:0+t:81+s:2048", "fields": "f12,f14,f3",
+        }
+        try:
+            all_diff = []
+            for pn in (1, 2, 3):  # 北交所 ~300 只，fid=f3 降序，须翻页取全量
+                params["pn"] = str(pn)
+                data = em_get(url, params=params, timeout=15)
+                diff = (data.get("data") or {}).get("diff") or []
+                if isinstance(diff, dict):
+                    diff = list(diff.values())
+                all_diff.extend(diff)
+                if len(diff) < 100:  # 东财单页上限 100 条（pz=200 也被截断）
+                    break
+        except Exception:
+            return {}
+        up = down = flat = 0
+        for row in all_diff:
+            try:
+                pct = float(row.get("f3"))
+            except (TypeError, ValueError):
+                flat += 1
+                continue
+            if pct > 0:
+                up += 1
+            elif pct < 0:
+                down += 1
+            else:
+                flat += 1
+        total = up + down + flat
+        if total == 0:
+            return {}
+        return {"up": up, "down": down, "flat": flat, "total": total}
 
     # ---------- 自测 ----------
 
