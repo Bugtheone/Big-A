@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-a-stock-data V3.6.0 数据源保证门禁（本地可执行，无网络依赖）
+a-stock-data V3.6.1 数据源保证门禁（本地可执行，无网络依赖）
 
 对应 AGENTS.md「数据源版本保证（强制）」的机器可查实现，保证 AI agent 对话中
-自动调用的一定是 a-stock-data V3.6.0（并覆盖 Tushare.pro / westock-data / 问财 SkillHub）。
+自动调用的一定是 a-stock-data V3.6.1（并覆盖 Tushare.pro / westock-data / 问财 SkillHub）。
 
 保证点：
-  G1 双份 SKILL.md 存在且版本 == 3.6.0（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
+  G1 双份 SKILL.md 存在且版本 == 3.6.1（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
   G2 双份 SKILL.md 内容一致（md5 相同）
-  G3 V3.6.0 API 面完整（norm_ticker / tencent_quote(is_stale) / eastmoney_reports(老码抛错) /
+  G3 V3.6.1 API 面完整（norm_ticker / tencent_quote(is_stale) / eastmoney_reports(老码抛错) /
      em_get / em_stock_monitor / em_price_anomaly / tdx_client / eastmoney_datacenter /
      board_fund_flow / iwencai_search）
   G4 无 V3.5 及更早接口残留（def baidu_fund_flow_history / import akshare，SKILL.md 与 scripts/ 均查）
@@ -31,11 +31,11 @@ import sys
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _USER_SKILL = os.path.expanduser("~/.grok/skills/a-stock-data/SKILL.md")
 _PROJ_SKILL = os.path.join(_PROJECT_ROOT, "a-stock-data-main", "SKILL.md")
-_EXPECTED_VERSION = "3.6.0"
+_EXPECTED_VERSION = "3.6.1"
 
 _IN_CI = os.environ.get("GITHUB_ACTIONS") == "true"
 
-# V3.6.0 关键 API 面（函数定义或标志，必须在 SKILL.md 中出现）
+# V3.6.1 关键 API 面（函数定义或标志，必须在 SKILL.md 中出现）
 _API_SURFACE = [
     ("def norm_ticker", "ticker 归一化（解析失败抛 ValueError）"),
     ("def tencent_quote", "腾讯行情（带 is_stale 僵尸报价标志）"),
@@ -43,8 +43,8 @@ _API_SURFACE = [
     ("def em_get", "东财统一节流入口（防封）"),
     ("def eastmoney_reports", "东财研报（老码抛 ValueError 不静默空）"),
     ("norm_ticker(code, stock_only=True)", "研报层已接入 norm_ticker 归一化"),
-    ("def em_stock_monitor", "重点监控池（V3.6.0 新增）"),
-    ("def em_price_anomaly", "日内异动池（V3.6.0 新增）"),
+    ("def em_stock_monitor", "重点监控池（V3.6.1 新增）"),
+    ("def em_price_anomaly", "日内异动池（V3.6.1 新增）"),
     ("def tdx_client", "mootdx 客户端（规避 BESTIP bug + 验活）"),
     ("def eastmoney_datacenter", "东财数据中心统一查询"),
     ("def board_fund_flow", "板块资金流向（V3.5）"),
@@ -158,9 +158,9 @@ def check_g3_api_surface() -> None:
     missing = [(m, label) for m, label in _API_SURFACE if m not in src]
     if missing:
         detail = "; ".join(f"{m}({label})" for m, label in missing)
-        _record("G3", _FAIL, f"V3.6.0 API 面缺失 {len(missing)} 项: {detail}")
+        _record("G3", _FAIL, f"V3.6.1 API 面缺失 {len(missing)} 项: {detail}")
     else:
-        _record("G3", _PASS, f"V3.6.0 API 面完整（{len(_API_SURFACE)} 项关键函数/标志）")
+        _record("G3", _PASS, f"V3.6.1 API 面完整（{len(_API_SURFACE)} 项关键函数/标志）")
 
 
 def check_g4_no_old_api() -> None:
@@ -267,7 +267,7 @@ def main() -> int:
         live_three_sources()
 
     print("=" * 66)
-    print("a-stock-data V3.6.0 数据源保证门禁" + ("（含 --live 联网冒烟）" if live else "（本地）"))
+    print("a-stock-data V3.6.1 数据源保证门禁" + ("（含 --live 联网冒烟）" if live else "（本地）"))
     print("=" * 66)
     n_fail = 0
     for cid, status, msg in _results:
@@ -279,9 +279,9 @@ def main() -> int:
               f" / {sum(1 for _, s, _ in _results if s == 'SKIP')} SKIP"
     print(summary)
     if n_fail:
-        print("✗ 保证门禁未通过，禁止将 a-stock-data 视为 V3.6.0 可用。")
+        print("✗ 保证门禁未通过，禁止将 a-stock-data 视为 V3.6.1 可用。")
     else:
-        print("✓ 保证门禁通过：AI agent 将自动调用 a-stock-data V3.6.0（含 Tushare/westock/问财 路由）。")
+        print("✓ 保证门禁通过：AI agent 将自动调用 a-stock-data V3.6.1（含 Tushare/westock/问财 路由）。")
     return 1 if n_fail else 0
 
 
