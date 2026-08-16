@@ -417,6 +417,41 @@ def ts_ggt_daily(ts_code=None, trade_date=None, start=None, end=None):
     return _fetch(pro, "ggt_daily", **kw)
 
 
+def ts_hk_hold(ts_code=None, trade_date=None, start=None, end=None, exchange=""):
+    """沪深港通持股明细（周频周五更新）。
+    - 单股区间: ts_code + start/end
+    - 全市场单日: trade_date
+    - 全市场区间: start/end（内部按周五逐日取数，避开 _fetch 全市场按日循环的无效调用）
+    exchange 过滤：SH/SZ=沪深股通（北向持A股，5000积分档实测返回空、需更高档），
+    不传/HK=港股通（南向持港股，本档可用）。
+    北向实时净买额 2024-08 后官方停披露；北向成交额备胎见 tushare_api.fetch_moneyflow_hsgt。"""
+    from scripts.tushare_api import get_pro
+    pro = get_pro()
+    if ts_code:
+        kw = {"ts_code": ts_code}
+        if start: kw["start_date"] = start
+        if end: kw["end_date"] = end
+        if exchange: kw["exchange"] = exchange
+        return _fetch(pro, "hk_hold", **kw)
+    if trade_date:
+        kw = {"trade_date": trade_date}
+        if exchange: kw["exchange"] = exchange
+        return _fetch(pro, "hk_hold", **kw)
+    s = datetime.strptime(start or "20200101", "%Y%m%d")
+    e = datetime.strptime(end or datetime.now().strftime("%Y%m%d"), "%Y%m%d")
+    out: List[Dict] = []
+    cur = s
+    while cur <= e:
+        if cur.weekday() == 4:
+            try:
+                df = pro.hk_hold(trade_date=cur.strftime("%Y%m%d"), exchange=exchange or None)
+                out.extend(_df_to_dicts(df))
+            except Exception as ex:
+                logger.warning(f"Tushare.hk_hold {cur:%Y%m%d} 失败: {ex}")
+        cur += timedelta(days=1)
+    return out
+
+
 def ts_pledge_stat(ts_code=None):
     """股权质押统计（最新质押率，2026-08-05 风险因子 P2）。"""
     from scripts.tushare_api import get_pro
