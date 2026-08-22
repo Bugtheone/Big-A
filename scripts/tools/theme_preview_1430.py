@@ -23,7 +23,9 @@ def _rt():
 
 def _ths_hot(date: str) -> list:
     url = f"http://zx.10jqka.com.cn/event/api/getharden/date/{date}/orderby/date/orderway/desc/charset/GBK/"
-    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+    s = requests.Session()
+    s.trust_env = False
+    r = s.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
     return r.json().get("data") or []
 
 
