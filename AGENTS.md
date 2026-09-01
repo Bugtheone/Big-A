@@ -46,6 +46,7 @@
    - **FTShare-MCP**（server 0.1.1）：`~/.config/opencode/opencode.jsonc` 的 `ftshare` remote 配置（`opencode mcp list` 显示 connected），公共地址 `https://market.ft.tech/gateway/mcp`，199 工具（194 个 `ft_*` + 5 个便捷入口）；
    - **FTShare-skills**（`ftshare-market-data`）：已装 `~/.config/opencode/skills/ftshare-market-data/`，1 主 skill + 153 子 skill，`python run.py <子技能名> [参数]` 走 `market.ft.tech` `/api/v1` 公共 API；
    - 实时行情仍以 a-stock-data 主源为准；服务端由官方维护，调用失败显式降级到四源技能，禁止以 FTShare 为唯一数据源。
+6. **数据源全景清单见 `docs/数据源架构图.md`（V3.7.1 全量：19 源主源体系 + 9 配套源 + 降级链 + 已死源清单 + 费用评估，2026-09-01 同步更新）**——取数前查该文档确认主源/备胎/封禁风险，已死源禁止使用。
 
 ## 项目约定摘要
 - 项目：A股数据分析工具集（Python），根目录 scripts/ 含数据总线 `scripts/market_api.py`（`from scripts.market_api import api`）、数据守门员 `scripts/data_gate.py`
