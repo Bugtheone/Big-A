@@ -3,7 +3,7 @@
 <h1 align="center">a-stock-data</h1>
 
 <p align="center">
-  <b>Full-stack data toolkit for China A-shares — 11 layers · 54 endpoints · 19 sources · zero-auth</b>
+  <b>Full-stack data toolkit for China A-shares — 12 layers · 60 endpoints · 22 sources · zero-auth</b>
 </p>
 
 <p align="center">
@@ -11,22 +11,22 @@
   <img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python">
   <a href="https://github.com/simonlin1212/a-stock-data/stargazers"><img src="https://img.shields.io/github/stars/simonlin1212/a-stock-data?style=social" alt="Stars"></a>
   <br>
-  <img src="https://img.shields.io/badge/layers-11-2ea44f.svg" alt="Layers">
-  <img src="https://img.shields.io/badge/endpoints-54-2ea44f.svg" alt="Endpoints">
-  <img src="https://img.shields.io/badge/sources-19-2ea44f.svg" alt="Sources">
+  <img src="https://img.shields.io/badge/layers-12-2ea44f.svg" alt="Layers">
+  <img src="https://img.shields.io/badge/endpoints-60-2ea44f.svg" alt="Endpoints">
+  <img src="https://img.shields.io/badge/sources-22-2ea44f.svg" alt="Sources">
   <img src="https://img.shields.io/badge/auth-zero-success.svg" alt="Zero Auth">
 </p>
 
 <p align="center">
   <a href="#architecture">Architecture</a> ·
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#54-endpoints">Endpoints</a> ·
+  <a href="#60-endpoints">Endpoints</a> ·
   <a href="./CHANGELOG.md">Changelog</a>
 </p>
 
-Full-stack data toolkit for China A-Share market — 11-layer architecture · 54 endpoints (51 primary + 3 official backups) · 19 data sources · direct HTTP calls except two TCP client libraries (mootdx / baostock)
+Full-stack data toolkit for China A-Share market — 12-layer architecture · 60 capability endpoints (55 primary + 5 backups) · 22 data sources · direct HTTP calls except two TCP client libraries (mootdx / baostock)
 
-A self-contained Skill file that consolidates raw A-share data from 19 sources into a ready-to-use toolkit for AI coding assistants. No need to memorize mootdx candlestick parameters, Eastmoney PDF Referer headers, or iwencai X-Claw authentication — it's all handled. And when a primary source bans you, there's a backup-source quick reference to fall back on.
+A self-contained Skill file that consolidates raw A-share data from 22 sources into a ready-to-use toolkit for AI coding assistants. No need to memorize mootdx candlestick parameters, Eastmoney PDF Referer headers, or iwencai X-Claw authentication — it's all handled. And when a primary source bans you, there's a backup-source quick reference to fall back on.
 
 > Compatible with [Claude Code](https://github.com/anthropics/claude-code) · [Codex](https://github.com/openai/codex) · [OpenClaw](https://github.com/anthropics/openclaw)
 >
@@ -34,10 +34,20 @@ A self-contained Skill file that consolidates raw A-share data from 19 sources i
 
 ---
 
+## Open to AI Roles in Shenzhen
+
+The author is open to AI roles in Shenzhen, particularly in **AI-powered investment research products, Forward Deployed Engineering (FDE), and AI consulting or solutions** at Tencent, other leading technology companies, and financial institutions.
+
+He combines experience in financial institutions with hands-on AI product development, building open-source market data tools and multi-agent systems with **17K+ GitHub stars**.
+
+Contact: [simonlin0423@gmail.com](mailto:simonlin0423@gmail.com)
+
+---
+
 ## Architecture
 
 ```
-China A-Share Full-Stack Data · 11-Layer Architecture · V3.7.1
+China A-Share Full-Stack Data · 12-Layer Architecture · V3.8.0
 │  (Priority: prefer mootdx/Tencent — never IP-banned; Eastmoney only for exclusive data, with built-in throttling)
 ├── Market Data    mootdx + Tencent + Baidu + Sina    Candlesticks (w/ MA5/10/20) + Order Book + PE/PB + Index/ETF
 │                                                     + adjust factors qfq/hfq  ★V3.7
@@ -54,10 +64,11 @@ China A-Share Full-Stack Data · 11-Layer Architecture · V3.7.1
 │                                                     + Watch list pool + Intraday price-anomaly pool  ★V3.6
 ├── Options        Sina hq.sinajs                     ETF option T-quotes / Greeks / implied volatility  ★V3.3
 ├── Sentiment      cninfo IRM + THS + Eastmoney       Investor Q&A / hot lists / popularity rank / concept hits  ★V3.3
-└── Macro          PBoC + NBS                     Social financing (monthly, 12 cols) / PMI (mfg · non-mfg · composite · by size)  ★V3.7
+├── Macro          PBoC + NBS                     Social financing (monthly, 12 cols) / PMI (mfg · non-mfg · composite · by size)
+└── Index/Calendar CSI + CNI + SZSE               Constituents / weights / PE & dividend yields / official trading calendar
 ```
 
-> ★V3.4 On top of the 11 layers there is now a **Backup Sources & Fallback Strategy** appendix: SSE/SZSE official + Sina + HKEX — official backup functions (dragon-tiger / fund flow / filings) + a per-layer fallback table for when a primary source bans you (see the corresponding SKILL.md section).
+> The 12 layers include a **Backup Sources & Fallback Strategy** appendix: dragon-tiger, fund flow and filings, plus official SSE/SZSE margin data and BSE current quotes with five-level books. See SKILL.md for coverage and source dates.
 
 ---
 
@@ -83,9 +94,11 @@ Launch Claude Code and say "Check the valuation of 688017" — the skill activat
 
 ---
 
-## 54 Endpoints
+## 60 Endpoints
 
-> **Counting convention:** the tables below have 55 rows but count as 54 endpoints — "Eastmoney Industry Reports" shares **the same endpoint** as "Eastmoney reportapi" (only the `qType` parameter differs) and "THS Northbound (historical)" is a local self-built cache (not a separate endpoint), so neither is counted; the single "EM Intraday Anomaly Pool" row covers **two** endpoints (`list` / `count`), adding one back. 55 − 1 − 1 + 1 = 54.
+There are 55 primary entries and 5 backups. Counts refer to capability entries: CSI/CNI or SSE/SZSE routes within one function count once; helpers and research candidates are excluded.
+
+> **Counting convention:** the tables below have 61 rows but count as 60 capability endpoints — "Eastmoney Industry Reports" shares **the same endpoint** as "Eastmoney reportapi" (only the `qType` parameter differs) and "THS Northbound (historical)" is a local self-built cache (not a separate endpoint), so neither is counted; the single "EM Intraday Anomaly Pool" row covers **two** endpoints (`list` / `count`), adding one back. 61 − 1 − 1 + 1 = 60.
 
 ### Market Data (real-time, no IP ban)
 
@@ -189,19 +202,30 @@ Launch Claude Code and say "Check the valuation of 688017" — the skill activat
 | **PBoC Social Financing** | Aggregate Financing to the Real Economy, monthly, 12 columns (RMB/entrusted/trust loans, undiscounted acceptances, corporate & government bonds, equity financing, ABS, write-offs) |
 | **NBS PMI** | Manufacturing / non-manufacturing / composite PMI + large / medium / small enterprise breakdown |
 
-### Backup Sources (V3.4 new · fallback when a primary source bans you)
+### Index Data and Trading Calendar
+
+| Endpoint | Data |
+|----------|------|
+| Index Constituents | Latest CSI constituents and latest published CNI month-end constituents; actual source dates, no historical membership backfill |
+| Index Weights | Latest published CSI/CNI weights in percentage points; dates may differ from constituents |
+| Index Valuation | CSI PE and dividend yields under two share-capital conventions; recent file, no PB or full-history guarantee |
+| Official Trading Calendar | Complete SZSE calendar month; missing days, unpublished months and unknown flags raise errors |
+
+### Backup Sources (fallback when a primary source fails)
 
 | Endpoint | Data |
 |----------|------|
 | Official Dragon-Tiger Backup | SSE + SZSE official APIs, zero-auth, authoritative first-party, incl. brokerage seats (when Eastmoney is banned) |
 | Fund Flow Backup | Sina daily 4-tier order net flow (super-large / large / medium / small + net inflow) |
 | Filings Backup | SZSE official for Shenzhen tickers, Eastmoney for Shanghai, both with direct PDF links (when cninfo is banned) |
+| Official Margin Backup | Query SSE/SZSE separately; CNY amounts and share/unit quantities; missing SSE short balance remains null |
+| BSE Quote Backup | Board-wide or single-symbol OHLC, volume, amount and five-level snapshot; validates session date; no historical backfill or verified intraday latency |
 
 > Plus a **per-layer primary → independent-backup table** (exchange official / THS F10 / HKEX / cninfo webapi / Jin10 — all on different rate-limit planes) and a "confirmed dead" list — see the "Backup Sources & Fallback Strategy" section in SKILL.md.
 
 ### Authentication
 
-All data sources except iwencai are **completely free, no API key needed** (including the V3.7 additions — baostock / SW Research / PBoC / NBS — all zero-registration). Only iwencai semantic search requires an API key ([apply here](https://www.iwencai.com/skillhub)).
+All integrated sources except iwencai require no user registration or API key. CSI, CNI and BSE need no user credentials; BSE establishes an anonymous site cookie. Only iwencai semantic search requires an API key ([apply here](https://www.iwencai.com/skillhub)). Optional research candidates are excluded from these capabilities.
 
 ---
 
@@ -242,6 +266,12 @@ Just tell your AI assistant:
 | **ST / Suspension** | "When was 000004 flagged ST, and has it ever been suspended" |
 | **Industry Drift** | "Which SW industry was 000001 in back in 2016 — same as today?" |
 | **Macro Backdrop** | "What's the latest social financing and PMI — is liquidity loose or tight" |
+| Index Constituents | "List the latest CSI 300 constituents and their source date" |
+| Index Weights | "Show the latest published ChiNext weights, preserving their actual date" |
+| Index Valuation | "Show recent CSI 300 PE and dividend yields, with both conventions separately" |
+| Trading Calendar | "Which days in September 2026 are open, according to SZSE?" |
+| Margin Backup | "Eastmoney is unavailable; fetch SSE and SZSE margin data separately for 2026-09-03" |
+| BSE Backup | "Fetch the current official BSE snapshot for 920021 and verify its session date" |
 
 ### 4 Built-in Research Workflows
 
@@ -254,25 +284,6 @@ Just tell your AI assistant:
 
 ---
 
-
-## V3.7 Highlights
-
-**1 new data layer, 7 new endpoints, 4 new sources** (baostock / SW Research / PBoC / NBS — all zero-registration, zero-key). Every endpoint was run and verified on 2026-08-19.
-
-| Gap it closes | Endpoint | Verified |
-|---|---|---|
-| **"Chip layer" was a misnomer** — §4.1~4.5 were all capital-flow data, no actual chip distribution | Chip Distribution (CYQ) | Eastmoney has **no** public CYQ endpoint (`push2`/`push2his` both 404 in testing); computed locally from OHLC + turnover, zero new sources |
-| **Valuation was same-day snapshot only** | Valuation History | **2,581 rows** of daily PE/PB/PS/PCF for Moutai since 2016-01-04, plus turnover / suspension / ST (000004 shows 276 ST days) |
-| **K-line is unadjusted — cross-ex-div comparisons break** | Adjust Factors qfq/hfq | One HTTP call, ~1.8KB; ⚠️ **qfq divides, hfq multiplies** — wrong direction fails silently with wrong numbers |
-| **No way to get delisting dates** | Listing / Delisting | Only zero-auth source; lets you drop zombie tickers at the screening stage |
-| **Industry was current-only → look-ahead bias** | SW Industry History | **12,893 rows / 5,905 tickers / 38 level-1 industries**; Ping An Bank verified across 1991→2014→2021 |
-| **No macro layer at all** | Social Financing + PMI | Social financing monthly, 12 columns (2026-01 flow: 7,218.5bn CNY); PMI 2026-07 manufacturing 49.2 |
-
-> ⚠️ **New dependencies:** `numpy baostock xlrd openpyxl`. baostock is a TCP client library (no registration, no key)
-> and **does not support the Beijing Exchange** — codes starting 4/8/92/920 are rejected server-side, so this
-> toolkit blocks them before login and raises `ValueError`.
-
----
 
 ## Data Source Priority (V3.2 re-ranked by IP-ban risk)
 
@@ -292,13 +303,30 @@ Just tell your AI assistant:
 | 10 | **SW Research** | HTTP | Low (public XLS) | Industry classification history |
 | 11 | **PBoC** | HTTP | Low (official site) | Aggregate social financing |
 | 12 | **NBS** | HTTP | Low (official site) | PMI |
+| By data type | **CSI / CNI** | HTTP | Public files; avoid frequent downloads | Constituents/weights and CSI PE/dividend yields |
+| Official backups | **SSE / SZSE / BSE** | HTTP | Anonymous access; throttle batch requests | SSE/SZSE margin and BSE current quotes/books, alongside existing exchange backups |
 | **last (exclusive only)** | **Eastmoney** datacenter/push2/reportapi/search/np-weblist | HTTP | **Medium — has rate-limit risk** | Dragon-tiger / lockup / margin / block trade / shareholders / dividends / fund flow / reports / news (all via `em_get()`) |
 
 > **Architecture:** Except mootdx and baostock (both TCP client libraries), all sources use direct HTTP API calls with no third-party data wrapper in between. **Eastmoney APIs are rate-limited; all calls go through `em_get()` for serial throttling. For batch jobs, increase `EM_MIN_INTERVAL`.**
 >
-> **Fallback (V3.4 new):** When any primary source is banned or broken, check the "Backup Sources & Fallback Strategy" section in SKILL.md — every data category has an independent backup on a **different domain and rate-limit plane** (SSE/SZSE official / Sina / THS / HKEX), unaffected when Eastmoney bans you.
+> **Fallback:** When a primary source fails, check the "Backup Sources & Fallback Strategy" section in SKILL.md. Some core data types have independent backups on **different domains with separate rate limits**. Not every capability has a backup; always verify dates and completeness after fetching.
 
 ---
+
+## FAQ
+
+**Why are index weights not dated today? Can they be used for historical backtests?**
+Constituents and weights may be published on different dates. The CNI endpoint returns a month-end snapshot; `date` is the source date. Current membership is not historical membership. This release does not integrate adjustment history or substitute zero for missing index PB.
+
+**How do I run the two new backups?**
+Execute the full Layer 12 code block in SKILL.md, then the official margin/BSE backup block. Query margin data separately for `SH` and `SZ`; BSE requires the expected session date. Date mismatches, incomplete pagination and unpublished data raise errors.
+
+**Are easy_tdx and the new official THS API included?**
+They are research candidates, not runtime dependencies. Auction integration needs Python 3.10+ compatibility work; the THS service requires a user key. See the [source integration record](docs/source-integration-v3.8.0.md) (Chinese). No installation dependencies were added.
+
+## Verification
+
+`python3 -m unittest discover -s tests -v` extracts the shipped code directly from SKILL.md and checks dates, fields, symbol routing, units, pagination and error propagation. Live tests require explicit `ASTOCK_LIVE_TRADE_DATE` and `ASTOCK_LIVE_MARGIN_DATE` values matching current official data. See the [verification record](docs/source-integration-v3.8.0.md) (Chinese).
 
 ## Changelog
 
