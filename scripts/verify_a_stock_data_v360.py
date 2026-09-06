@@ -6,7 +6,7 @@ a-stock-data V3.8.0 数据源保证门禁（本地可执行，无网络依赖）
 自动调用的一定是 a-stock-data V3.8.0（并覆盖 Tushare.pro / westock-data / 问财 SkillHub）。
 
 保证点：
-  G1 双份 SKILL.md 存在且版本 == 3.7.1（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
+  G1 双份 SKILL.md 存在且版本 == 3.8.0（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
   G2 双份 SKILL.md 内容一致（md5 相同）
   G3 V3.8.0 API 面完整（norm_ticker / tencent_quote(is_stale) / eastmoney_reports(老码抛错) /
      em_get / em_stock_monitor / em_price_anomaly / tdx_client / eastmoney_datacenter /
