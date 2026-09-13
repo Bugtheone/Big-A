@@ -51,6 +51,7 @@
 ## 项目约定摘要
 - 项目：A股数据分析工具集（Python），根目录 scripts/ 含数据总线 `scripts/market_api.py`（`from scripts.market_api import api`）、数据守门员 `scripts/data_gate.py`
 - **策略文档体系**：策略流派分类框架见 `docs/策略分类.md`（永久元框架）；**板块大方向分类见 `docs/板块地图.md`（科技/消费/金融/周期/公用/题材六大类 + 进攻/防御/周期归属）**；**资金博弈体系见 `docs/资金博弈.md`（存量/增量/减量 + 七路资金 + 轮动规律）**；**稳定盈利全景知识库见 `docs/稳定盈利知识库.md`（利润来源三分类 + 七条路线 + 红利/价值完整SOP + 大盘三态择时 + 风控与反模式，源图 `docs/A股稳定盈利全景.mm`）**；当前生效策略见 `docs/当前策略.md`（每日更新）；超跌反弹专用见 `docs/超跌反弹策略.md`；候选标的见 `docs/观察池.md`——AI 输出操作建议时必须先引用对应策略文档
+- **zettaranc-skill（Z哥/万千交易纪律蒸馏系统，2026-09-13 集成 v4.3.0）**：位于 `zettaranc-skill/`，200万字语料蒸馏的交易纪律框架（60+指标/30+战法：少妇战法·四块砖·麒麟会·三波理论·沙漏·牛绳），默认数据源 `DATA_MODE=websearch` 复用本项目 a-stock-data 免费链路（零Token）。**对话命中以下需求即调用**：①个股技术面/买卖点/卖点纪律分析 → `cd zettaranc-skill && python -m modules.cli analyze <代码> [--json]`；②数据同步 → `python -m modules.data_sync sync --ts_code <代码> --days <N> --indicators`（写 `zettaranc-skill/data/stock_data.db`，代码未同步时 analyze 返回空指标须先 sync）；③策略回测 → `python -m modules.cli backtest shaofu <代码>`；④批量选股/评分 → `screen` / `score`。上游测试 1500 passed（已修 conftest 导入路径，勿回退）。**定位：Z哥框架提供"卖点纪律与战法信号"，本项目 market_api/entry_point/策略文档提供"数据与买点"——两者互补，操作建议仍以本项目策略文档为准，Z哥信号作交叉参考**
 - 报告产物输出到 `reports/`，临时分析脚本用完删除
 - 编码规范：`Session().trust_env = False`、禁止裸 `except:`、`if __name__ == '__main__':` 必加、禁止硬编码路径
 
