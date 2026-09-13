@@ -18,8 +18,10 @@ A-Stock-Data 免费数据源客户端
 
 from __future__ import annotations
 
+import json
 import logging
 import random
+import subprocess
 import time
 import urllib.request
 from datetime import datetime, timedelta
@@ -208,6 +210,45 @@ def tencent_quote(codes: list[str]) -> dict[str, dict]:
 # 百度股市通 — 日K线带 MA
 # ---------------------------------------------------------------------------
 
+_BUAID_URL = "https://finance.pae.baidu.com/selfselect/getstockquotation"
+
+
+def _baidu_get_json(url: str, params: dict, headers: dict, timeout: int = 12) -> dict:
+    """百度行情请求：requests 优先，403/风控（Result.code==403）时降级 subprocess curl。
+
+    背景：百度按 TLS/JA3 指纹风控 python-requests（2026-09-13 实测 curl 200、
+    requests 无论代理/UA/头组合一律 hit risk 403）。curl 与 requests 同机同 IP，
+    差异仅在 TLS 握手指纹，故用系统 curl 兜底可恢复数据。
+    """
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=timeout,
+                         proxies={"http": None, "https": None})
+        d = r.json()
+        result = d.get("Result")
+        if isinstance(result, dict) and result.get("code") == 403:
+            raise RuntimeError("baidu risk-control 403")
+        return d
+    except Exception:
+        pass
+    # curl 兜底：-G 拼 query，显式不带代理
+    import shlex
+    qs = "&".join(f"{k}={_urlenc(str(v))}" for k, v in params.items())
+    full = f"{url}?{qs}"
+    cmd = ["curl", "-s", "-m", str(timeout), "--noproxy", "*", full]
+    for k, v in headers.items():
+        cmd += ["-H", f"{k}: {v}"]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 5).stdout
+        return json.loads(out)
+    except Exception as e:
+        logger.debug("[a-stock-data] baidu curl 兜底失败: %s", e)
+        return {}
+
+
+def _urlenc(s: str) -> str:
+    from urllib.parse import quote
+    return quote(s, safe="")
+
 
 def baidu_kline_with_ma(code: str, start_time: str = "") -> dict:
     """百度股市通K线，返回自带 ma5/ma10/ma20 均价"""
@@ -232,8 +273,7 @@ def baidu_kline_with_ma(code: str, start_time: str = "") -> dict:
         "Origin": "https://gushitong.baidu.com",
         "Referer": "https://gushitong.baidu.com/",
     }
-    r = requests.get(url, params=params, headers=headers, timeout=10)
-    d = r.json()
+    d = _baidu_get_json(url, params, headers)
     result = d.get("Result")
     # 百度 API 可能返回 dict 或 list（空结果时返回 []）
     if isinstance(result, list):
