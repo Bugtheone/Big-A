@@ -58,7 +58,6 @@ def get_kl(ts_code: str) -> pd.DataFrame:
         rows = df
         # Tushare daily 结果可能为 dict list；统一成 DataFrame
         if isinstance(df, list):
-            import pandas as pd
             df = pd.DataFrame(df)
         for c in ('trade_date', 'open', 'close', 'high', 'low', 'pct_chg'):
             if c not in df.columns:
