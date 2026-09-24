@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-a-stock-data V3.8.0 数据源保证门禁（本地可执行，无网络依赖）
+a-stock-data V3.10.0 数据源保证门禁（本地可执行，无网络依赖）
 
 对应 AGENTS.md「数据源版本保证（强制）」的机器可查实现，保证 AI agent 对话中
-自动调用的一定是 a-stock-data V3.8.0（并覆盖 Tushare.pro / westock-data / 问财 SkillHub）。
+自动调用的一定是 a-stock-data V3.10.0（并覆盖 Tushare.pro / westock-data / 问财 SkillHub）。
 
 保证点：
-  G1 双份 SKILL.md 存在且版本 == 3.8.0（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
+  G1 双份 SKILL.md 存在且版本 == 3.10.0（用户级 ~/.grok/skills/a-stock-data + 项目级 a-stock-data-main/）
   G2 双份 SKILL.md 内容一致（md5 相同）
-  G3 V3.8.0 API 面完整（norm_ticker / tencent_quote(is_stale) / eastmoney_reports(老码抛错) /
+  G3 V3.10.0 API 面完整（V3.8 既有 + V3.9 新增 25 入口 + V3.10 新增 tencent_ticks/futures_kline；
+     norm_ticker / tencent_quote(is_stale) / eastmoney_reports(老码抛错) /
      em_get / em_stock_monitor / em_price_anomaly / tdx_client / eastmoney_datacenter /
      board_fund_flow / iwencai_search / em_secid / em_market_code / chip_distribution /
      apply_adjust / baostock_valuation_history / sw_industry_history / nbs_pmi / pboc_social_financing）
@@ -32,7 +33,7 @@ import sys
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _USER_SKILL = os.path.expanduser("~/.grok/skills/a-stock-data/SKILL.md")
 _PROJ_SKILL = os.path.join(_PROJECT_ROOT, "a-stock-data-main", "SKILL.md")
-_EXPECTED_VERSION = "3.8.0"
+_EXPECTED_VERSION = "3.10.0"
 
 _IN_CI = os.environ.get("GITHUB_ACTIONS") == "true"
 
@@ -64,6 +65,28 @@ _API_SURFACE = [
     ("def trading_calendar", "深交所整月交易日历（V3.8.0 新增）"),
     ("def margin_trading_backup", "沪深官方两融备源（V3.8.0 新增）"),
     ("def bse_quote_backup", "北交所官方行情备源（V3.8.0 新增）"),
+    # V3.9.0 新增（2026-09-20 上游发布）
+    ("def tencent_kline", "腾讯分段K线 日/周/月/1-60分钟（V3.9.0 新增）"),
+    ("def tdx_daily_package", "通达信官网盘后包（V3.9.0 新增）"),
+    ("def futures_daily", "五大期货交易所官方日行情（V3.9.0 L13）"),
+    ("def futures_position_rank", "期货持仓排名（V3.9.0 L13）"),
+    ("def futures_realtime", "新浪实时期货含大商所（V3.9.0 L13）"),
+    ("def a50_futures", "富时A50期货（V3.9.0 L13）"),
+    ("def sge_spot", "上金所现货（V3.9.0 L13）"),
+    ("def convertible_bonds", "可转债条款/溢价率（V3.9.0 L15）"),
+    ("def wallstreetcn_lives", "华尔街见闻快讯（V3.9.0 L5）"),
+    ("def cctv_news", "新闻联播（V3.9.0 L5）"),
+    ("def sse_e_interaction", "上证e互动（V3.9.0 L10）"),
+    ("def chinabond_yield_curve", "中债收益率曲线（V3.9.0 L11）"),
+    ("def lpr_history", "LPR 全历史（V3.9.0 L11）"),
+    ("def macro_calendar", "全球宏观日历（V3.9.0 L11）"),
+    ("def etf_shares", "沪深 ETF 份额（V3.9.0）"),
+    ("def st_stock_list", "沪深京 ST 名单（V3.9.0）"),
+    ("def to_joinquant", "聚宽代码转换（V3.9.0，.XSHG/.XSHE）"),
+    # V3.10.0 新增（2026-09-22 上游发布）
+    ("def tencent_ticks", "腾讯当日逐笔（V3.10.0 §1.4，替代已死 mootdx transaction）"),
+    ("def futures_kline", "新浪期货日K含大商所（V3.10.0 §13.7）"),
+    ("missing_seq", "tencent_ticks 盘后缺失笔号标志（V3.10.0）"),
 ]
 
 # V3.5 及更早接口残留（定义即违规；changelog 历史说明文字除外，故只查 def/import）
@@ -282,7 +305,7 @@ def main() -> int:
         live_three_sources()
 
     print("=" * 66)
-    print("a-stock-data V3.8.0 数据源保证门禁" + ("（含 --live 联网冒烟）" if live else "（本地）"))
+    print("a-stock-data V3.10.0 数据源保证门禁" + ("（含 --live 联网冒烟）" if live else "（本地）"))
     print("=" * 66)
     n_fail = 0
     for cid, status, msg in _results:
@@ -294,9 +317,9 @@ def main() -> int:
               f" / {sum(1 for _, s, _ in _results if s == 'SKIP')} SKIP"
     print(summary)
     if n_fail:
-        print("✗ 保证门禁未通过，禁止将 a-stock-data 视为 V3.8.0 可用。")
+        print("✗ 保证门禁未通过，禁止将 a-stock-data 视为 V3.10.0 可用。")
     else:
-        print("✓ 保证门禁通过：AI agent 将自动调用 a-stock-data V3.8.0（含 Tushare/westock/问财 路由）。")
+        print("✓ 保证门禁通过：AI agent 将自动调用 a-stock-data V3.10.0（含 Tushare/westock/问财 路由）。")
     return 1 if n_fail else 0
 
 
