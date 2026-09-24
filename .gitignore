@@ -85,3 +85,7 @@ scratch/
 
 # ── 板块变化对比状态（每15分钟变化，不跟踪） ──
 reports/daily/*/sector_state.json
+
+# secrets（2026-09-24）
+.env
+*.key
